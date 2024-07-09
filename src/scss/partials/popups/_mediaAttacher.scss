@@ -18,7 +18,7 @@
       //max-height: unquote('min(640px, 100%)');
       max-height: 100%;
 
-      img, 
+      img,
       video {
         border-radius: inherit;
       }
@@ -32,7 +32,7 @@
       margin-bottom: 9px;
       padding: 12px 20px 15px;
       position: relative;
-  
+
       .btn-primary {
         width: auto;
         height: 2.25rem;
@@ -187,7 +187,7 @@
       position: absolute;
     }
 
-    img, 
+    img,
     video {
       object-fit: cover;
       width: 100%;
@@ -287,6 +287,25 @@
       inset-inline-end: -.25rem;
       box-shadow: var(--menu-box-shadow);
     }
+  }
+
+  .popup-item-buttons {
+    position: absolute;
+    bottom: 0.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    justify-content: center;
+    padding: 0.25rem 0.5rem;
+    background-color: rgba(0, 0, 0, .2);
+    border-radius: $border-radius-huge;
+    backdrop-filter: blur(35px);
+    opacity: 0;
+    z-index: 2; // to be above the spoiler
+  }
+
+  .popup-item-media:hover .popup-item-buttons {
+    opacity: 1;
   }
 }
 

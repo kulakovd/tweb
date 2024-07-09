@@ -54,6 +54,7 @@ import {ChatType} from '../chat/chat';
 import pause from '../../helpers/schedulers/pause';
 import {Accessor, createRoot, createSignal, Setter} from 'solid-js';
 import SelectedEffect from '../chat/selectedEffect';
+import ButtonIcon from '../buttonIcon'
 
 type SendFileParams = SendFileDetails & {
   file?: File,
@@ -63,6 +64,7 @@ type SendFileParams = SendFileDetails & {
   mediaSpoiler?: HTMLElement,
   middlewareHelper: MiddlewareHelper
   // strippedBytes?: PhotoSize.photoStrippedSize['bytes']
+  buttonsItem: HTMLElement
 };
 
 let currentPopup: PopupNewMedia;
@@ -748,6 +750,59 @@ export default class PopupNewMedia extends PopupElement {
     return scaledBlob && {url, blob: scaledBlob};
   }
 
+  private createMediaButtons(params: SendFileParams) {
+    const buttons = ([
+      {
+        icon: 'enhance',
+        onClick: () => {
+        }
+      },
+      {
+        icon: 'mediaspoiler',
+        onClick: async(e: MouseEvent) => {
+          const target = findUpClassName(e.target, 'popup-item');
+          const item = this.willAttach.sendFileDetails.find((i) => i.itemDiv === target);
+          await this.applyMediaSpoiler(item)
+          // update buttons
+          params.buttonsItem.innerHTML = '';
+          this.createMediaButtons(item)
+        },
+        verify: () => !params.mediaSpoiler
+      },
+      {
+        icon: 'mediaspoileroff',
+        onClick: (e: MouseEvent) => {
+          const target = findUpClassName(e.target, 'popup-item');
+          const item = this.willAttach.sendFileDetails.find((i) => i.itemDiv === target);
+          this.removeMediaSpoiler(item)
+          // update buttons
+          params.buttonsItem.innerHTML = '';
+          this.createMediaButtons(item)
+        },
+        verify: () => !!params.mediaSpoiler
+      },
+      {
+        icon: 'delete',
+        onClick: () => {
+          // remove from DOM and from sendFileDetails
+          params.itemDiv.remove();
+          this.willAttach.sendFileDetails = this.willAttach.sendFileDetails.filter((i) => i !== params);
+          this.files = this.files.filter((f) => f !== params.file);
+          // TODO should I really call this to rearrange the images?
+          this.attachFiles();
+        }
+      }
+    ])
+    .filter(b => b?.verify?.() ?? true)
+    .map((button) => {
+      const btn = ButtonIcon(button.icon)
+      attachClickEvent(btn, button.onClick, {listenerSetter: this.listenerSetter})
+      return btn
+    })
+
+    params.buttonsItem.append(...buttons);
+  }
+
   private async attachMedia(params: SendFileParams) {
     const {itemDiv} = params;
     itemDiv.classList.add('popup-item-media');
@@ -797,6 +852,13 @@ export default class PopupNewMedia extends PopupElement {
     } else {
       const img = new Image();
       itemDiv.append(img);
+
+      params.buttonsItem = document.createElement('div');
+      params.buttonsItem.classList.add('popup-item-buttons');
+      itemDiv.append(params.buttonsItem);
+
+      this.createMediaButtons(params)
+
       const url = params.objectURL = await apiManagerProxy.invoke('createObjectURL', file);
 
       await renderImageFromUrlPromise(img, url);
@@ -932,7 +994,7 @@ export default class PopupNewMedia extends PopupElement {
     } as any;
 
     // do not pass these properties to worker
-    defineNotNumerableProperties(params, ['scaledBlob', 'middlewareHelper', 'itemDiv', 'mediaSpoiler']);
+    defineNotNumerableProperties(params, ['scaledBlob', 'middlewareHelper', 'itemDiv', 'mediaSpoiler', 'buttonsItem']);
 
     params.middlewareHelper = this.middlewareHelper.get().create();
     params.itemDiv = itemDiv;
