@@ -13,7 +13,7 @@ export type ButtonOptions = Partial<{
   onlyMobile: true,
   icon: Icon,
   rippleSquare: true,
-  text: LangPackKey,
+  text?: LangPackKey,
   textArgs?: FormatterArguments,
   disabled: boolean,
   asDiv: boolean,

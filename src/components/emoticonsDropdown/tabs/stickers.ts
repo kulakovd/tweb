@@ -32,6 +32,7 @@ import {onCleanup} from 'solid-js';
 import SuperStickerRenderer from './SuperStickerRenderer';
 
 type StickersTabItem = {element: HTMLElement, document: Document.document};
+
 export default class StickersTab extends EmoticonsTabC<StickersTabCategory<StickersTabItem>, Document.document[]> {
   private stickerRenderer: SuperStickerRenderer;
 

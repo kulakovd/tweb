@@ -1,0 +1,127 @@
+.color-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-inline: 1rem;
+
+  .color-selector-colors {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+
+    &:not(.show-known-colors) .color-selector-color.known-color {
+      display: none;
+    }
+  }
+
+  .custom-color-slider-container {
+    display: none;
+    flex: 1;
+
+    align-items: center;
+    //padding-inline:  0.25rem;
+    padding-inline-end: 1.25rem;
+
+    &.visible {
+      display: flex;
+    }
+
+    .color-picker-sliders {
+      display: flex;
+      width: 100%;
+      margin: 0;
+    }
+
+    .color-picker-color-slider > rect {
+      height: 100%;
+      y: 0;
+      rx: 12;
+      ry: 12;
+    }
+
+    .color-picker-color-slider-dragger > circle {
+      r: 13;
+    }
+  }
+
+  .color-selector-color {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+
+    .color-selector-kernel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+    }
+
+    .color-selector-capsule {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      opacity: 0;
+      transition: 0.3s;
+    }
+
+    &.selected {
+      .color-selector-capsule {
+        width: 40px;
+        height: 40px;
+        transition: 0.2s;
+      }
+    }
+
+    &:not(.known-color).selected {
+      .color-selector-capsule {
+        opacity: 0.05;
+      }
+    }
+
+    &.known-color.selected {
+      .color-selector-capsule {
+        opacity: 0.1;
+      }
+    }
+  }
+
+  .color-picker {
+    width: unset;
+    display: none;
+    grid-template-columns: 1fr 128px;
+    gap: 1.5rem;
+    margin: 0;
+
+    &.visible {
+      display: grid;
+    }
+
+    .color-picker-box {
+      height: auto;
+    }
+
+    .color-picker-inputs {
+      display: flex;
+      flex-direction: column;
+
+      .input-field {
+        --height: 48px;
+        flex: 0 0 auto;
+
+        input {
+          padding-block: 0;
+        }
+      }
+    }
+  }
+}

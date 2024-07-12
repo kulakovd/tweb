@@ -55,6 +55,7 @@ import pause from '../../helpers/schedulers/pause';
 import {Accessor, createRoot, createSignal, Setter} from 'solid-js';
 import SelectedEffect from '../chat/selectedEffect';
 import ButtonIcon from '../buttonIcon'
+import {MediaEditor} from '../mediaEditor/mediaEditor'
 
 type SendFileParams = SendFileDetails & {
   file?: File,
@@ -755,6 +756,7 @@ export default class PopupNewMedia extends PopupElement {
       {
         icon: 'enhance',
         onClick: () => {
+          new MediaEditor().open();
         }
       },
       {

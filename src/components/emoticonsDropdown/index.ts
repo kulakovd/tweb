@@ -122,6 +122,7 @@ export class EmoticonsDropdown extends DropdownHover {
   public textColor: string;
 
   public isStandalone: boolean;
+  private skipRightsCheck: boolean;
 
   constructor(options: {
     customParentElement?: HTMLElement,
@@ -129,6 +130,7 @@ export class EmoticonsDropdown extends DropdownHover {
     getOpenPosition?: () => DOMRectEditable,
     tabsToRender?: EmoticonsTab[],
     customOnSelect?: (emoji: {element: HTMLElement} & ReturnType<typeof getEmojiFromElement>) => void,
+    skipRightsCheck?: boolean
   } = {}) {
     super({
       element: renderEmojiDropdownElement(),
@@ -144,6 +146,7 @@ export class EmoticonsDropdown extends DropdownHover {
       send_gifs: undefined,
       send_stickers: undefined
     };
+    this.skipRightsCheck = options.skipRightsCheck;
 
     this.addEventListener('open', async() => {
       if(IS_TOUCH_SUPPORTED) {
@@ -354,7 +357,7 @@ export class EmoticonsDropdown extends DropdownHover {
 
     const HIDE_EMOJI_TAB = IS_APPLE_MOBILE && false;
 
-    const INIT_TAB_ID = HIDE_EMOJI_TAB ? this.getTab(StickersTab).tabId : this.getTab(EmojiTab).tabId;
+    const INIT_TAB_ID = HIDE_EMOJI_TAB ? this.getTab(StickersTab).tabId : this.tabsToRender[0].tabId;
 
     if(HIDE_EMOJI_TAB) {
       (this.tabsEl.children[1] as HTMLElement).classList.add('hide');
@@ -432,15 +435,17 @@ export class EmoticonsDropdown extends DropdownHover {
       return;
     }
 
-    const rights: {[tabId: number]: ChatRights} = {
-      ...(this.getTab(StickersTab) && {[this.getTab(StickersTab).tabId]: 'send_stickers'}),
-      ...(this.getTab(GifsTab) && {[this.getTab(GifsTab).tabId]: 'send_gifs'})
-    };
+    if(!this.skipRightsCheck) {
+      const rights: { [tabId: number]: ChatRights } = {
+        ...(this.getTab(StickersTab) && {[this.getTab(StickersTab).tabId]: 'send_stickers'}),
+        ...(this.getTab(GifsTab) && {[this.getTab(GifsTab).tabId]: 'send_gifs'})
+      };
 
-    const action = rights[id];
-    if(action && !this.rights[action]) {
-      toastNew({langPackKey: POSTING_NOT_ALLOWED_MAP[action]});
-      return false;
+      const action = rights[id];
+      if(action && !this.rights[action]) {
+        toastNew({langPackKey: POSTING_NOT_ALLOWED_MAP[action]});
+        return false;
+      }
     }
 
     animationIntersector.checkAnimations(true, EMOTICONSSTICKERGROUP);
