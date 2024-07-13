@@ -50,6 +50,7 @@
   .media-editor-canvas-container {
     flex: 1;
     background: var(--media-editor-canvas-bg);
+    overflow: hidden;
   }
 
   .media-editor-sidebar {

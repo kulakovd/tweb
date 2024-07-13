@@ -752,18 +752,24 @@ export default class PopupNewMedia extends PopupElement {
   }
 
   private createMediaButtons(params: SendFileParams) {
+    const itemFromEvt = (e: MouseEvent) => {
+      const target = findUpClassName(e.target, 'popup-item');
+      const item = this.willAttach.sendFileDetails.find((i) => i.itemDiv === target);
+      return item;
+    }
+
     const buttons = ([
       {
         icon: 'enhance',
-        onClick: () => {
-          new MediaEditor().open();
+        onClick: (e: MouseEvent) => {
+          const item = itemFromEvt(e);
+          new MediaEditor().open(item.itemDiv.querySelector('img'));
         }
       },
       {
         icon: 'mediaspoiler',
         onClick: async(e: MouseEvent) => {
-          const target = findUpClassName(e.target, 'popup-item');
-          const item = this.willAttach.sendFileDetails.find((i) => i.itemDiv === target);
+          const item = itemFromEvt(e);
           await this.applyMediaSpoiler(item)
           // update buttons
           params.buttonsItem.innerHTML = '';
@@ -774,8 +780,7 @@ export default class PopupNewMedia extends PopupElement {
       {
         icon: 'mediaspoileroff',
         onClick: (e: MouseEvent) => {
-          const target = findUpClassName(e.target, 'popup-item');
-          const item = this.willAttach.sendFileDetails.find((i) => i.itemDiv === target);
+          const item = itemFromEvt(e);
           this.removeMediaSpoiler(item)
           // update buttons
           params.buttonsItem.innerHTML = '';

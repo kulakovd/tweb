@@ -10,6 +10,7 @@ import {drawTab} from './tabs/drawTab'
 import rootScope from '../../lib/rootScope'
 import {AppManagers} from '../../lib/appManagers/managers'
 import {stickersTab} from './tabs/stickersTab'
+import {MediaEditorRenderer} from '../../lib/mediaEditor/mediaEditorRenderer'
 
 const className = 'media-editor';
 
@@ -29,8 +30,9 @@ export class MediaEditor {
   private bodyEl = document.body as HTMLBodyElement;
 
   private readonly container: HTMLElement;
-  private readonly canvas: HTMLElement;
   private readonly sidebar: HTMLElement;
+
+  private readonly renderer: MediaEditorRenderer
 
   private selectTab: (id: number | HTMLElement, animate?: boolean) => void;
   public managers: AppManagers
@@ -44,6 +46,17 @@ export class MediaEditor {
     const canvasContainer = document.createElement('div');
     canvasContainer.classList.add(`${className}-canvas-container`);
     this.container.append(canvasContainer);
+
+    const canvas = document.createElement('canvas');
+    canvas.classList.add(`${className}-canvas`);
+    this.renderer = new MediaEditorRenderer(canvas);
+
+    new ResizeObserver(([container]) => {
+      const {width, height} = container.contentRect;
+      this.renderer.updateSize(width, height);
+    }).observe(canvasContainer);
+
+    canvasContainer.append(canvas);
 
     this.sidebar = document.createElement('div');
     this.sidebar.classList.add(`${className}-sidebar`);
@@ -124,8 +137,9 @@ export class MediaEditor {
     return content
   }
 
-  open() {
+  open(media: HTMLImageElement) {
     this.bodyEl.append(this.container);
+    this.renderer.loadMedia(media.src);
   }
 
   close() {
@@ -133,6 +147,6 @@ export class MediaEditor {
   }
 }
 
-setTimeout(() => {
-  new MediaEditor().open();
-}, 1000)
+// setTimeout(() => {
+//   new MediaEditor().open();
+// }, 1000)
