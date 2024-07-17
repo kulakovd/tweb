@@ -8,6 +8,7 @@ import {render2d} from './webgl/utils/render'
 import {MediaEditorRenderingContext} from './webgl/context'
 import {createEnhancePass} from './processors/enhancePass'
 import {createAdjustmentsPass} from './processors/adjustmentsPass'
+import {createSharpenPass} from './processors/sharpenPass'
 
 export {}
 
@@ -35,7 +36,7 @@ const ctx: MediaEditorRenderingContext = {
   }
 }
 
-const defaultProgram = createDefaultProgram(ctx, 'invert')
+const defaultProgram = createDefaultProgram(ctx, 'direct')
 function renderToCanvas(texture: Texture) {
   const prevFramebuffer = gl.getParameter(gl.FRAMEBUFFER_BINDING);
   const prevTexture = gl.getParameter(gl.TEXTURE_BINDING_2D);
@@ -60,12 +61,14 @@ function renderToCanvas(texture: Texture) {
 
 const enhancePass = createEnhancePass(ctx)
 const adjustmentsPass = createAdjustmentsPass(ctx)
+const sharpenPass = createSharpenPass(ctx)
 
 function renderFrame(bitmap: ImageBitmap, values: MediaEncoderValues) {
   const image = createImageTexture(gl, bitmap)
   const enhanced = enhancePass(image, values)
   const adjusted = adjustmentsPass(enhanced, values);
-  renderToCanvas(adjusted)
+  const sharpened = sharpenPass(adjusted, values)
+  renderToCanvas(sharpened)
   return createImageBitmap(canvas)
 }
 
