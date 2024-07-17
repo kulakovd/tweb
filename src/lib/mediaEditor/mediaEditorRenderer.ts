@@ -1,6 +1,8 @@
+import {defaultMediaEncoderValues, MediaEncoderValues} from './mediaEncoderValues'
+
 type WorkerEventData = {
   type: 'frameReady'
-  imageData: ImageData
+  bitmap: ImageBitmap
 }
 
 export class MediaEditorRenderer {
@@ -17,6 +19,8 @@ export class MediaEditorRenderer {
   private width = 0
   private height = 0
 
+  private values: MediaEncoderValues = defaultMediaEncoderValues
+
   constructor(canvas: HTMLCanvasElement) {
     this.img.onload = () => {
       this.waitingForImage = false
@@ -31,7 +35,7 @@ export class MediaEditorRenderer {
       const data: WorkerEventData = event.data
       switch(data.type) {
         case 'frameReady':
-          this.onFrameReady(data.imageData)
+          this.onFrameReady(data.bitmap)
           break
       }
     })
@@ -51,6 +55,11 @@ export class MediaEditorRenderer {
     this.requestFrame()
   }
 
+  updateValues(updates: Partial<MediaEncoderValues>) {
+    Object.assign(this.values, updates)
+    this.requestFrame()
+  }
+
   private requestFrame() {
     if(this.waitingForFrame || this.waitingForSize || this.waitingForImage || !this.img.complete) {
       this.needsUpdate = true
@@ -58,12 +67,14 @@ export class MediaEditorRenderer {
     }
 
     this.waitingForFrame = true
-    const imageData = this.getImageData(this.img)
-    this.worker.postMessage({type: 'requestFrame', imageData}, [imageData.data.buffer])
+
+    createImageBitmap(this.img).then((bitmap) => {
+      this.worker.postMessage({type: 'requestFrame', bitmap, values: this.values}, [bitmap])
+    })
   }
 
-  private onFrameReady(imageData: ImageData) {
-    this.renderFrame(imageData)
+  private onFrameReady(bitmap: ImageBitmap) {
+    this.renderFrame(bitmap)
     this.waitingForFrame = false
     if(this.needsUpdate) {
       this.needsUpdate = false
@@ -71,7 +82,7 @@ export class MediaEditorRenderer {
     }
   }
 
-  private renderFrame(imageData: ImageData) {
+  private renderFrame(bitmap: ImageBitmap) {
     requestAnimationFrame(() => {
       const sw = this.img.width
       const sh = this.img.height
@@ -83,17 +94,11 @@ export class MediaEditorRenderer {
       const dx = (this.width - dw) / 2
       const dy = (this.height - dh) / 2
 
-      // TODO maybe scale in advance before sending to worker?
-      // scale image to fit canvas
-      this.helperCanvas.width = sw
-      this.helperCanvas.height = sh
-      const helperCtx = this.helperCanvas.getContext('2d')
-      helperCtx.putImageData(imageData, 0, 0)
-
       this.mainCanvas.width = this.width
       this.mainCanvas.height = this.height
       const ctx = this.mainCanvas.getContext('2d')
-      ctx.drawImage(this.helperCanvas, 0, 0, sw, sh, dx, dy, dw, dh)
+      ctx.drawImage(bitmap, 0, 0, sw, sh, dx, dy, dw, dh)
+      bitmap.close()
     })
   }
 

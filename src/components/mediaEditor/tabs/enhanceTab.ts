@@ -1,4 +1,5 @@
 import {rangeSlider} from '../rangeSlider'
+import {MediaEditor} from '../mediaEditor'
 
 const enhanceTools = [
   {
@@ -58,7 +59,7 @@ const enhanceTools = [
   }
 ] as const
 
-export function enhanceTab(tab: HTMLDivElement) {
+export function enhanceTab(tab: HTMLDivElement, mc: MediaEditor) {
   enhanceTools.forEach(tool => {
     const range = rangeSlider({
       min: tool.scale === 'absolute' ? 0 : -50,
@@ -67,7 +68,9 @@ export function enhanceTab(tab: HTMLDivElement) {
       label: tool.label,
       highlight: true,
       color: 'var(--primary-color)',
-      onChange: () => {}
+      onChange: (value) => {
+        mc.updateValues({[tool.name]: value})
+      }
     });
     tab.append(range.container);
   })

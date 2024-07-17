@@ -11,6 +11,7 @@ import rootScope from '../../lib/rootScope'
 import {AppManagers} from '../../lib/appManagers/managers'
 import {stickersTab} from './tabs/stickersTab'
 import {MediaEditorRenderer} from '../../lib/mediaEditor/mediaEditorRenderer'
+import {MediaEncoderValues} from '../../lib/mediaEditor/mediaEncoderValues'
 
 const className = 'media-editor';
 
@@ -145,8 +146,14 @@ export class MediaEditor {
   close() {
     this.container.remove();
   }
+
+  updateValues(updates: Partial<MediaEncoderValues>) {
+    this.renderer.updateValues(updates);
+  }
 }
 
 // setTimeout(() => {
-//   new MediaEditor().open();
+//   const image = new Image();
+//   image.src = '/assets/img/maserati_corners.jpg';
+//   new MediaEditor().open(image);
 // }, 1000)
