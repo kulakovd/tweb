@@ -1,11 +1,12 @@
 import {defaultVert} from './shaders/defaultVert';
 import {rgbToHsvFrag} from './shaders/rgbToHsvFrag';
 import {createProgram} from './utils/createProgram.js';
-import {mapVertices} from './vertex.js';
 import {render2d} from './utils/render.js';
 import {createEmptyTexture} from './utils/texture.js';
 
-export function createColorConvertProgram(gl, vertexBuffer) {
+export function createColorConvertProgram(ctx) {
+  const {gl, mapVertices} = ctx
+
   const program = createProgram(gl, defaultVert, rgbToHsvFrag)
 
   const uSamplerLoc = gl.getUniformLocation(program, 'uSampler')
@@ -32,7 +33,7 @@ export function createColorConvertProgram(gl, vertexBuffer) {
 
     gl.uniform1i(uSamplerLoc, 0) // texture unit 0
 
-    mapVertices(gl, vertexBuffer, vertexPositionLoc, texCoordLoc)
+    mapVertices(vertexPositionLoc, texCoordLoc)
 
     render2d(gl)
 

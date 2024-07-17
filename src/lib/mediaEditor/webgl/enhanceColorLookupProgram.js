@@ -1,11 +1,12 @@
 import {createProgram} from './utils/createProgram.js';
-import {mapVertices} from './vertex.js';
 import {render2d} from './utils/render.js';
 import {createEmptyTexture} from './utils/texture.js';
 import {defaultVert} from './shaders/defaultVert';
 import {enhanceColorLookupFrag} from './shaders/enhanceColorLookupFrag';
 
-export function createEnhanceColorLookupProgram(gl, vertexBuffer) {
+export function createEnhanceColorLookupProgram(ctx) {
+  const {gl, mapVertices} = ctx
+
   const program = createProgram(gl, defaultVert, enhanceColorLookupFrag)
 
   const colorSamplerLoc = gl.getUniformLocation(program, 'inputSampler')
@@ -43,7 +44,7 @@ export function createEnhanceColorLookupProgram(gl, vertexBuffer) {
 
     gl.uniform1f(intensityLoc, intensity)
 
-    mapVertices(gl, vertexBuffer, vertexPositionLoc, texCoordLoc)
+    mapVertices(vertexPositionLoc, texCoordLoc)
 
     render2d(gl)
 

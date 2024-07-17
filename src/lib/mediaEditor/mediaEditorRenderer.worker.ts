@@ -1,11 +1,13 @@
 // --isolated-modules
-import {enhancePass} from './processors/enhancePass'
 import {MediaEncoderValues} from './mediaEncoderValues'
 import {createImageTexture} from './webgl/utils/imageTexture'
 import {Texture} from './webgl/webgl'
 import {createDefaultProgram} from './webgl/defaultProgram'
-import {createVertexBuffer} from './webgl/vertex'
+import {initVertices} from './webgl/vertex'
 import {render2d} from './webgl/utils/render'
+import {MediaEditorRenderingContext} from './webgl/context'
+import {createEnhancePass} from './processors/enhancePass'
+import {createAdjustmentsPass} from './processors/adjustmentsPass'
 
 export {}
 
@@ -18,8 +20,22 @@ type EvtData = {
 const canvas = new OffscreenCanvas(1, 1)
 const gl = canvas.getContext('webgl2') as WebGL2RenderingContext
 
-const vertexBuffer = createVertexBuffer(gl)
-const defaultProgram = createDefaultProgram(gl, vertexBuffer)
+const vertices = initVertices(gl)
+
+const ctx: MediaEditorRenderingContext = {
+  gl,
+  mapVertices: (vLoc: number, tLoc: number, r: 'direct' | 'invert' = 'direct') => {
+    gl.bindBuffer(gl.ARRAY_BUFFER, r === 'direct' ? vertices.direct() : vertices.invert())
+    gl.enableVertexAttribArray(vLoc)
+    gl.vertexAttribPointer(vLoc, 2, gl.FLOAT, false, 8, 0)
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertices.tex())
+    gl.enableVertexAttribArray(tLoc)
+    gl.vertexAttribPointer(tLoc, 2, gl.FLOAT, false, 8, 0)
+  }
+}
+
+const defaultProgram = createDefaultProgram(ctx, 'invert')
 function renderToCanvas(texture: Texture) {
   const prevFramebuffer = gl.getParameter(gl.FRAMEBUFFER_BINDING);
   const prevTexture = gl.getParameter(gl.TEXTURE_BINDING_2D);
@@ -42,10 +58,14 @@ function renderToCanvas(texture: Texture) {
   gl.useProgram(prevProgram)
 }
 
+const enhancePass = createEnhancePass(ctx)
+const adjustmentsPass = createAdjustmentsPass(ctx)
+
 function renderFrame(bitmap: ImageBitmap, values: MediaEncoderValues) {
   const image = createImageTexture(gl, bitmap)
-  const enhanced = enhancePass(gl, image, values)
-  renderToCanvas(enhanced)
+  const enhanced = enhancePass(image, values)
+  const adjusted = adjustmentsPass(enhanced, values);
+  renderToCanvas(adjusted)
   return createImageBitmap(canvas)
 }
 

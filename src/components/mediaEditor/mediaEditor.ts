@@ -152,8 +152,8 @@ export class MediaEditor {
   }
 }
 
-// setTimeout(() => {
-//   const image = new Image();
-//   image.src = '/assets/img/maserati_corners.jpg';
-//   new MediaEditor().open(image);
-// }, 1000)
+setTimeout(() => {
+  const image = new Image();
+  image.src = '/assets/img/maserati_corners.jpg';
+  new MediaEditor().open(image);
+}, 1000)

@@ -1,7 +1,13 @@
 import {rangeSlider} from '../rangeSlider'
 import {MediaEditor} from '../mediaEditor'
+import {defaultMediaEncoderValues, MediaEncoderValues} from '../../../lib/mediaEditor/mediaEncoderValues'
+import {LangPackKey} from '../../../lib/langPack'
 
-const enhanceTools = [
+const enhanceTools: Array<{
+  label: LangPackKey,
+  name: keyof MediaEncoderValues,
+  scale: 'absolute' | 'symmetrical'
+}> = [
   {
     label: 'MediaEditor.Enhance.Enhance',
     name: 'enhance',
@@ -57,14 +63,14 @@ const enhanceTools = [
     name: 'sharpen',
     scale: 'absolute'
   }
-] as const
+]
 
 export function enhanceTab(tab: HTMLDivElement, mc: MediaEditor) {
   enhanceTools.forEach(tool => {
     const range = rangeSlider({
-      min: tool.scale === 'absolute' ? 0 : -50,
-      max: tool.scale === 'absolute' ? 100 : 50,
-      value: 0,
+      min: tool.scale === 'absolute' ? 0 : -100,
+      max: 100,
+      value: defaultMediaEncoderValues[tool.name],
       label: tool.label,
       highlight: true,
       color: 'var(--primary-color)',
