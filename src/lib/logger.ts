@@ -113,7 +113,7 @@ const methods: ['debug' | 'info' | 'warn' | 'error' | 'assert' | 'trace'/*  | 'l
 
 export function logger(prefix: string, type: LogTypes = LogTypes.Log | LogTypes.Warn | LogTypes.Error, ignoreDebugReset = false, style = ''): Logger {
   let originalPrefix: string;
-  if(!DEBUG && !ignoreDebugReset/*  || true */) {
+  if(!DEBUG && !ignoreDebugReset || true) {
     type = LogTypes.Error;
   }
 

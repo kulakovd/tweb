@@ -48,6 +48,7 @@
   z-index: 4;
 
   .media-editor-canvas-container {
+    position: relative;
     flex: 1;
     background: var(--media-editor-canvas-bg);
     overflow: hidden;
@@ -240,5 +241,30 @@
 
   .btn-corner {
     transform: translateZ(0);
+  }
+
+  .angle-gauge {
+    position: absolute;
+    bottom: 0px;
+    left: 50%;
+    transform: translateX(-50%);
+    transition: 200ms;
+    opacity: 0;
+
+    &.visible {
+      transition-delay: 500ms;
+      bottom: 45px;
+      opacity: 1;
+    }
+  }
+
+  .image-cropper {
+    transition: opacity 200ms;
+    opacity: 0;
+
+    &.visible {
+      transition-delay: 500ms;
+      opacity: 1;
+    }
   }
 }

@@ -1,0 +1,68 @@
+.image-cropper {
+  position: absolute;
+  box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
+
+  &-handle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+
+    &-topLeft {
+      top: -4px;
+      left: -4px;
+      cursor: nwse-resize;
+    }
+
+    &-topRight {
+      top: -4px;
+      right: -4px;
+      cursor: nesw-resize;
+    }
+
+    &-bottomLeft {
+      bottom: -4px;
+      left: -4px;
+      cursor: nesw-resize;
+    }
+
+    &-bottomRight {
+      bottom: -4px;
+      right: -4px;
+      cursor: nwse-resize;
+    }
+  }
+
+  &-grid {
+    opacity: 0.3;
+    height: 100%;
+    position: relative;
+    border: 1px solid white;
+
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      pointer-events: none;
+    }
+
+    &::before {
+      width: 100%;
+      border-top: 1px solid white;
+      border-bottom: 1px solid white;
+      top: 33.33%;
+      bottom: 33.33%;
+    }
+
+    &::after {
+      height: 100%;
+      border-left: 1px solid white;
+      border-right: 1px solid white;
+      left: 33.33%;
+      right: 33.33%;
+    }
+  }
+}
+
+

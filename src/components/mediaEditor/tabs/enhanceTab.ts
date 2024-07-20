@@ -1,11 +1,11 @@
 import {rangeSlider} from '../rangeSlider'
 import {MediaEditor} from '../mediaEditor'
-import {defaultMediaEncoderValues, MediaEncoderValues} from '../../../lib/mediaEditor/mediaEncoderValues'
+import {defaultMediaEncoderValues, MediaEditorValues} from '../../../lib/mediaEditor/mediaEditorValues'
 import {LangPackKey} from '../../../lib/langPack'
 
 const enhanceTools: Array<{
   label: LangPackKey,
-  name: keyof MediaEncoderValues,
+  name: keyof MediaEditorValues,
   scale: 'absolute' | 'symmetrical'
 }> = [
   {

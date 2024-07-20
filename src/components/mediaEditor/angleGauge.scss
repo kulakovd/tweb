@@ -1,0 +1,81 @@
+.angle-gauge {
+  width: 600px;
+  height: 42px;
+
+  &-gauge {
+    height: 100%;
+    mask-image: linear-gradient(to right, transparent 0, black 50%, transparent 100%);
+  }
+
+  &-numbers {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    position: absolute;
+    left: 0;
+  }
+
+  &-number {
+    width: 42px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+  }
+
+  &-number-text {
+    &::after {
+      content: '°';
+      position: absolute;
+    }
+  }
+
+  &-dots {
+    display: flex;
+    justify-content: space-between;
+    padding-inline: 2px;
+    width: 100%;
+  }
+
+  &-dot {
+    width: 2px;
+    height: 2px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+
+    &.active {
+      background-color: rgba(255, 255, 255, 1);
+    }
+  }
+
+  &-dot-center {
+    background-color: rgba(255, 255, 255, 0.5);
+  }
+
+  &-controls {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: space-between;
+    z-index: 1;
+    pointer-events: none;
+
+    > * {
+      pointer-events: auto;
+    }
+  }
+
+  &-arrow {
+    width: 6px;
+    height: 4px;
+    background-color: white;
+    //clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    clip-path: path('M2.29289 0.707106L0.28033 2.71967C-0.192143 3.19214 0.142482 4 0.81066 4H5.18934C5.85752 4 6.19214 3.19214 5.71967 2.71967L3.70711 0.707107C3.31658 0.316583 2.68342 0.316582 2.29289 0.707106Z');
+    position: absolute;
+    top: 70%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+}

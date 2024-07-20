@@ -1,5 +1,5 @@
 // --isolated-modules
-import {MediaEncoderValues} from './mediaEncoderValues'
+import {MediaEditorValues} from './mediaEditorValues'
 import {createImageTexture} from './webgl/utils/imageTexture'
 import {Texture} from './webgl/webgl'
 import {createDefaultProgram} from './webgl/defaultProgram'
@@ -15,7 +15,7 @@ export {}
 type EvtData = {
   type: 'requestFrame'
   bitmap: ImageBitmap
-  values: MediaEncoderValues
+  values: MediaEditorValues
 }
 
 const canvas = new OffscreenCanvas(1, 1)
@@ -63,7 +63,7 @@ const enhancePass = createEnhancePass(ctx)
 const adjustmentsPass = createAdjustmentsPass(ctx)
 const sharpenPass = createSharpenPass(ctx)
 
-function renderFrame(bitmap: ImageBitmap, values: MediaEncoderValues) {
+function renderFrame(bitmap: ImageBitmap, values: MediaEditorValues) {
   const image = createImageTexture(gl, bitmap)
   const enhanced = enhancePass(image, values)
   const adjusted = adjustmentsPass(enhanced, values);

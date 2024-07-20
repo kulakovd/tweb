@@ -11,7 +11,9 @@ import rootScope from '../../lib/rootScope'
 import {AppManagers} from '../../lib/appManagers/managers'
 import {stickersTab} from './tabs/stickersTab'
 import {MediaEditorRenderer} from '../../lib/mediaEditor/mediaEditorRenderer'
-import {MediaEncoderValues} from '../../lib/mediaEditor/mediaEncoderValues'
+import {MediaEditorValues} from '../../lib/mediaEditor/mediaEditorValues'
+import {AngleGauge} from './angleGauge'
+import {Cropper} from './cropper'
 
 const className = 'media-editor';
 
@@ -51,13 +53,26 @@ export class MediaEditor {
     const canvas = document.createElement('canvas');
     canvas.classList.add(`${className}-canvas`);
     this.renderer = new MediaEditorRenderer(canvas);
+    this.renderer.onRenderFrame = (x, y, w, h, values) => {
+      cropper.update(x, y, w, h, values.rotation);
+    }
 
     new ResizeObserver(([container]) => {
-      const {width, height} = container.contentRect;
+      const {width, height, left, top} = container.contentRect;
       this.renderer.updateSize(width, height);
+      angleGauge.init();
     }).observe(canvasContainer);
 
     canvasContainer.append(canvas);
+
+    const cropper = new Cropper();
+    canvasContainer.append(cropper.container);
+
+    const angleGauge = new AngleGauge();
+    canvasContainer.append(angleGauge.container);
+    angleGauge.onChange = (rotation) => {
+      this.renderer.updateValues({rotation});
+    }
 
     this.sidebar = document.createElement('div');
     this.sidebar.classList.add(`${className}-sidebar`);
@@ -70,9 +85,19 @@ export class MediaEditor {
     const doneBtn = ButtonIcon('check btn-circle rp btn-corner z-depth-1 btn-menu-toggle animated-button-icon');
     this.sidebar.append(doneBtn);
 
-    this.selectTab = horizontalMenu(tabs, content);
+    this.selectTab = horizontalMenu(tabs, content, (tabIdx) => {
+      if(tabIdx === 1) {
+        this.renderer.updatePadding(300)
+        angleGauge.container.classList.add('visible')
+        cropper.container.classList.add('visible')
+      } else {
+        this.renderer.updatePadding(0)
+        angleGauge.container.classList.remove('visible')
+        cropper.container.classList.remove('visible')
+      }
+    });
 
-    this.selectTab(0, false);
+    this.selectTab(1, false);
   }
 
   private constructNavBar() {
@@ -147,13 +172,13 @@ export class MediaEditor {
     this.container.remove();
   }
 
-  updateValues(updates: Partial<MediaEncoderValues>) {
+  updateValues(updates: Partial<MediaEditorValues>) {
     this.renderer.updateValues(updates);
   }
 }
 
 // setTimeout(() => {
 //   const image = new Image();
-//   image.src = '/assets/img/maserati_corners.jpg';
+//   image.src = '/assets/img/kandinsky.jpg';
 //   new MediaEditor().open(image);
 // }, 1000)

@@ -1,12 +1,12 @@
 import {Texture} from '../webgl/webgl'
-import {MediaEncoderValues} from '../mediaEncoderValues'
+import {MediaEditorValues} from '../mediaEditorValues'
 import {createAdjustmentsProgram} from '../webgl/adjustmentsProgram'
 import {MediaEditorRenderingContext} from '../webgl/context'
 
-export function createAdjustmentsPass(ctx: MediaEditorRenderingContext): (input: Texture, values: MediaEncoderValues) => Texture  {
+export function createAdjustmentsPass(ctx: MediaEditorRenderingContext): (input: Texture, values: MediaEditorValues) => Texture  {
   const adjustmentProgram = createAdjustmentsProgram(ctx)
 
-  return (input: Texture, values: MediaEncoderValues) => {
+  return (input: Texture, values: MediaEditorValues) => {
     const output = adjustmentProgram({
       input,
       params: {

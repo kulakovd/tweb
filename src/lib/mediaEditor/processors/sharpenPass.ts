@@ -1,9 +1,9 @@
 import {MediaEditorRenderingContext} from '../webgl/context'
 import {Texture} from '../webgl/webgl'
 import {createSharpenProgram} from '../webgl/sharpenProgram'
-import {MediaEncoderValues} from '../mediaEncoderValues'
+import {MediaEditorValues} from '../mediaEditorValues'
 
-export function createSharpenPass(ctx: MediaEditorRenderingContext): (input: Texture, values: MediaEncoderValues) => Texture {
+export function createSharpenPass(ctx: MediaEditorRenderingContext): (input: Texture, values: MediaEditorValues) => Texture {
   const sharpenProgram = createSharpenProgram(ctx)
 
   return (input: Texture, values) => {

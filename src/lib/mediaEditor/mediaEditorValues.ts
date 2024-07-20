@@ -1,4 +1,4 @@
-export type MediaEncoderValues = {
+export type MediaEditorValues = {
   enhance: number
   brightness: number
   contrast: number
@@ -10,9 +10,10 @@ export type MediaEncoderValues = {
   vignette: number
   grain: number
   sharpen: number
+  rotation: number
 }
 
-export const defaultMediaEncoderValues: MediaEncoderValues = {
+export const defaultMediaEncoderValues: MediaEditorValues = {
   enhance: 0,
   brightness: 0,
   contrast: 0,
@@ -23,5 +24,6 @@ export const defaultMediaEncoderValues: MediaEncoderValues = {
   shadows: 0,
   vignette: 0,
   grain: 0,
-  sharpen: 0
+  sharpen: 0,
+  rotation: 0
 }
