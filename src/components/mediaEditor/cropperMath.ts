@@ -16,11 +16,19 @@ export class Rect {
 
   private _rotation = 0;
 
+  private _aspectRatio: number | null = null;
+
+  constructor() {
+    this._topLeft = {x: 0, y: 0};
+    this._bottomRight = {x: 0, y: 0};
+  }
+
   public clone() {
     const r = new Rect();
     r._topLeft = {...this._topLeft};
     r._bottomRight = {...this._bottomRight};
     r._rotation = this._rotation;
+    r._aspectRatio = this._aspectRatio;
     return r;
   }
 
@@ -80,21 +88,150 @@ export class Rect {
   }
 
   set topLeft(value: Point) {
-    this._topLeft = value;
+    if(this._aspectRatio !== null) {
+      const corner = this._topLeft;
+
+      const diffX = corner.x - value.x;
+      const diffY = corner.y - value.y;
+
+      let width, height;
+      if(diffX > diffY) {
+        width = this._bottomRight.x - value.x;
+        height = width / this._aspectRatio;
+      } else {
+        height = this._bottomRight.y - value.y;
+        width = height * this._aspectRatio;
+      }
+
+      this._topLeft = {
+        x: this._bottomRight.x - width,
+        y: this._bottomRight.y - height
+      }
+    } else {
+      this._topLeft = value;
+    }
   }
 
   set topRight(value: Point) {
-    this._bottomRight = {x: value.x, y: this._bottomRight.y};
-    this._topLeft = {x: this._topLeft.x, y: value.y};
+    if(this._aspectRatio !== null) {
+      const corner = this._topLeft;
+
+      const diffX = value.x - corner.x;
+      const diffY = corner.y - value.y;
+
+      let width, height;
+      if(diffX > diffY) {
+        width = value.x - this._topLeft.x;
+        height = width / this._aspectRatio;
+      } else {
+        height = this._topLeft.y - value.y;
+        width = height * this._aspectRatio;
+      }
+
+      this._bottomRight = {
+        x: this._topLeft.x + width,
+        y: this._bottomRight.y
+      }
+      this._topLeft = {
+        x: this._topLeft.x,
+        y: this._bottomRight.y - height
+      }
+    } else {
+      this._bottomRight = {x: value.x, y: this._bottomRight.y};
+      this._topLeft = {x: this._topLeft.x, y: value.y};
+    }
   }
 
   set bottomLeft(value: Point) {
-    this._topLeft = {x: value.x, y: this._topLeft.y};
-    this._bottomRight = {x: this._bottomRight.x, y: value.y};
+    if(this._aspectRatio !== null) {
+      const corner = this._bottomRight;
+
+      const diffX = corner.x - value.x;
+      const diffY = value.y - corner.y;
+
+      let width, height;
+      if(diffX > diffY) {
+        width = this._bottomRight.x - value.x;
+        height = width / this._aspectRatio;
+      } else {
+        height = value.y - this._topLeft.y;
+        width = height * this._aspectRatio;
+      }
+
+      this._topLeft = {
+        x: this._bottomRight.x - width,
+        y: this._topLeft.y
+      }
+      this._bottomRight = {
+        x: this._bottomRight.x,
+        y: this._topLeft.y + height
+      }
+    } else {
+      this._topLeft = {x: value.x, y: this._topLeft.y};
+      this._bottomRight = {x: this._bottomRight.x, y: value.y};
+    }
   }
 
   set bottomRight(value: Point) {
-    this._bottomRight = value;
+    if(this._aspectRatio !== null) {
+      const corner = this._bottomRight;
+
+      const diffX = corner.x - value.x;
+      const diffY = corner.y - value.y;
+
+      let width, height;
+      if(diffX > diffY) {
+        width = value.x - this._topLeft.x;
+        height = width / this._aspectRatio;
+      } else {
+        height = value.y - this._topLeft.y;
+        width = height * this._aspectRatio;
+      }
+
+      this._bottomRight = {
+        x: this._topLeft.x + width,
+        y: this._topLeft.y + height
+      }
+    } else {
+      this._bottomRight = value;
+    }
+  }
+
+  setAspectRatio(value: number | null, maxWidth: number, maxHeight: number) {
+    this._aspectRatio = value;
+    if(value !== null) {
+      const width = this._bottomRight.x - this._topLeft.x;
+      const height = this._bottomRight.y - this._topLeft.y;
+      const square = width * height;
+      // Update size to match aspect ratio preserving square (if possible), and keeping the same center.
+
+      let newWidth, newHeight;
+      if(width > height) {
+        newWidth = Math.min(Math.sqrt(square * value), maxWidth);
+        newHeight = newWidth / value;
+        if(newHeight > maxHeight) {
+          newHeight = maxHeight;
+          newWidth = newHeight * value;
+        }
+      } else {
+        newHeight = Math.min(Math.sqrt(square / value), maxHeight);
+        newWidth = newHeight * value;
+        if(newWidth > maxWidth) {
+          newWidth = maxWidth;
+          newHeight = newWidth / value;
+        }
+      }
+
+      const center = this.center;
+      this._topLeft = {
+        x: center.x - newWidth / 2,
+        y: center.y - newHeight / 2
+      }
+      this._bottomRight = {
+        x: center.x + newWidth / 2,
+        y: center.y + newHeight / 2
+      }
+    }
   }
 
   public move(vector: Vector) {

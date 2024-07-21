@@ -118,6 +118,10 @@ export class MediaEditorRenderer {
     this.requestFrame()
   }
 
+  getOriginalAspectRatio() {
+    return this.img.width / this.img.height
+  }
+
   private requestFrame() {
     if(this.waitingForFrame || this.waitingForSize || this.waitingForImage || !this.img.complete) {
       this.needsUpdate = true

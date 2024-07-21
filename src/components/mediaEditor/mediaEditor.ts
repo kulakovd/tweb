@@ -17,6 +17,13 @@ import {Cropper} from './cropper'
 
 const className = 'media-editor';
 
+export type AspectRatio = {
+  type: 'free' | 'original';
+} | {
+  type: 'value';
+  value: number;
+}
+
 const toolsTabs: Array<{
   icon: Icon,
   value: string,
@@ -36,6 +43,7 @@ export class MediaEditor {
   private readonly sidebar: HTMLElement;
 
   private readonly renderer: MediaEditorRenderer
+  private readonly cropper: Cropper
 
   private selectTab: (id: number | HTMLElement, animate?: boolean) => void;
   public managers: AppManagers
@@ -66,6 +74,7 @@ export class MediaEditor {
     canvasContainer.append(canvas);
 
     const cropper = new Cropper();
+    this.cropper = cropper;
     canvasContainer.append(cropper.container);
 
     const angleGauge = new AngleGauge();
@@ -174,6 +183,16 @@ export class MediaEditor {
 
   updateValues(updates: Partial<MediaEditorValues>) {
     this.renderer.updateValues(updates);
+  }
+
+  updateAspectRatio(aspectRatio: AspectRatio) {
+    if(aspectRatio.type === 'free') {
+      this.cropper.setAspectRatio(null);
+    } else if(aspectRatio.type === 'original') {
+      this.cropper.setAspectRatio(this.renderer.getOriginalAspectRatio());
+    } else if(aspectRatio.type === 'value') {
+      this.cropper.setAspectRatio(aspectRatio.value);
+    }
   }
 }
 

@@ -112,7 +112,9 @@ export class Cropper {
 
   public update(x: number, y: number, w: number, h: number, rotation: number) {
     if(!this.hasChanged) {
-      this.cropRect = Rect.from2Points({x, y}, {x: x + w, y: y + h});
+      this.cropRect = this.cropRect.clone();
+      this.cropRect.topLeft = {x, y};
+      this.cropRect.bottomRight = {x: x + w, y: y + h};
     }
 
     this.imageRect = Rect.from2Points({x, y}, {x: x + w, y: y + h});
@@ -120,6 +122,14 @@ export class Cropper {
 
     const cropRect = this.resizeToFil(this.cropRect);
     this.setCoords(cropRect);
+  }
+
+  public setAspectRatio(aspectRatio: number) {
+    const cropRect = this.cropRect.clone()
+    if(this.imageRect.width > 0) {
+      cropRect.setAspectRatio(aspectRatio, this.imageRect.width, this.imageRect.height);
+    }
+    this.setCoords(this.resizeToFil(cropRect));
   }
 
   private moveToFit(_cropRect: Rect): {
@@ -236,8 +246,19 @@ export class Cropper {
       if(cropBottomLeft !== null) {
         cropRect.bottomLeft = cropBottomLeft;
       }
-
-      return cropRect;
+    } else {
+      if(cropRect.topLeft.x < imageRect.topLeft.x) {
+        cropRect.topLeft = {x: imageRect.topLeft.x, y: cropRect.topLeft.y};
+      }
+      if(cropRect.topLeft.y < imageRect.topLeft.y) {
+        cropRect.topLeft = {x: cropRect.topLeft.x, y: imageRect.topLeft.y};
+      }
+      if(cropRect.bottomRight.x > imageRect.bottomRight.x) {
+        cropRect.bottomRight = {x: imageRect.bottomRight.x, y: cropRect.bottomRight.y};
+      }
+      if(cropRect.bottomRight.y > imageRect.bottomRight.y) {
+        cropRect.bottomRight = {x: cropRect.bottomRight.x, y: imageRect.bottomRight.y};
+      }
     }
 
     return cropRect;
