@@ -162,33 +162,63 @@ export class Cropper {
       const bottomRightOutside = !imageRect.isInside(cropRect.bottomRight);
       const bottomLeftOutside = !imageRect.isInside(cropRect.bottomLeft);
 
+      const diagonal1vectors = [];
+      const diagonal2vectors = [];
+
       if(topLeftOutside) {
         const targetSeg = rotation < 0 ? imageRect.topSegment : imageRect.leftSegment;
         const point = findPerpendicularPointOnLine(targetSeg, cropRect.topLeft);
-        moveVector.x += point.x - cropRect.topLeft.x;
-        moveVector.y += point.y - cropRect.topLeft.y;
+        diagonal1vectors.push({
+          x: point.x - cropRect.topLeft.x,
+          y: point.y - cropRect.topLeft.y
+        });
       }
 
       if(topRightOutside) {
         const targetSeg = rotation < 0 ? imageRect.rightSegment : imageRect.topSegment;
         const point = findPerpendicularPointOnLine(targetSeg, cropRect.topRight);
-        moveVector.x += point.x - cropRect.topRight.x;
-        moveVector.y += point.y - cropRect.topRight.y;
+        diagonal2vectors.push({
+          x: point.x - cropRect.topRight.x,
+          y: point.y - cropRect.topRight.y
+        });
       }
 
       if(bottomRightOutside) {
         const targetSeg = rotation < 0 ? imageRect.bottomSegment : imageRect.rightSegment;
         const point = findPerpendicularPointOnLine(targetSeg, cropRect.bottomRight);
-        moveVector.x += point.x - cropRect.bottomRight.x;
-        moveVector.y += point.y - cropRect.bottomRight.y;
+        diagonal1vectors.push({
+          x: point.x - cropRect.bottomRight.x,
+          y: point.y - cropRect.bottomRight.y
+        });
       }
 
       if(bottomLeftOutside) {
         const targetSeg = rotation < 0 ? imageRect.leftSegment : imageRect.bottomSegment;
         const point = findPerpendicularPointOnLine(targetSeg, cropRect.bottomLeft);
-        moveVector.x += point.x - cropRect.bottomLeft.x;
-        moveVector.y += point.y - cropRect.bottomLeft.y;
+        diagonal2vectors.push({
+          x: point.x - cropRect.bottomLeft.x,
+          y: point.y - cropRect.bottomLeft.y
+        });
       }
+
+      const addDiagonalVector = (vectors: Vector[]) => {
+        let shortestVector: Vector | null = null;
+        let shortestVectorLength = Infinity;
+        vectors.forEach((vector) => {
+          const len = vector.x * vector.x + vector.y * vector.y;
+          if(len < shortestVectorLength) {
+            shortestVector = vector;
+            shortestVectorLength = len;
+          }
+        });
+        if(shortestVector !== null) {
+          moveVector.x += shortestVector.x;
+          moveVector.y += shortestVector.y;
+        }
+      }
+
+      addDiagonalVector(diagonal1vectors);
+      addDiagonalVector(diagonal2vectors);
     }
 
     return {cropRect, moveVector};

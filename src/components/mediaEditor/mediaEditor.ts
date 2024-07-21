@@ -196,8 +196,8 @@ export class MediaEditor {
   }
 }
 
-// setTimeout(() => {
-//   const image = new Image();
-//   image.src = '/assets/img/kandinsky.jpg';
-//   new MediaEditor().open(image);
-// }, 1000)
+setTimeout(() => {
+  const image = new Image();
+  image.src = '/assets/img/kandinsky.jpg';
+  new MediaEditor().open(image);
+}, 1000)
