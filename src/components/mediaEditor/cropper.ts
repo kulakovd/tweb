@@ -151,23 +151,31 @@ export class Cropper {
     scale: number,
   }) {
     this.scale = scale;
+    const rotation = this.imageRect.rotation;
     this.imageRect = Rect.from2Points(
       {x, y},
       {x: x + width, y: y + height}
     );
+    this.imageRect.rotation = rotation;
 
     if(!this.hasChanged) {
       this.cropRect = this.cropRect.clone();
       this.cropRect.topLeft = {x, y};
       this.cropRect.bottomRight = {x: x + width, y: y + height};
-
-      this.setCoords(this.resizeToFil(this.cropRect));
-      this.updateValue();
     }
+
+    this.setCoords(this.resizeToFil(this.cropRect));
+    this.updateValue();
   }
 
   public updateRotation(rotation: number) {
     this.imageRect.rotation = rotation;
+
+    if(!this.hasChanged) {
+      this.cropRect = this.imageRect.clone();
+      this.cropRect.rotation = 0;
+    }
+
     const cropRect = this.resizeToFil(this.cropRect);
     this.setCoords(cropRect);
     this.updateValue();

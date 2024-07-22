@@ -11,6 +11,7 @@ export type MediaEditorValues = {
   grain: number
   sharpen: number
   rotation: number
+  transformRotation: number
   // Coordinates of the crop rectangle relative to the image bounds
   crop: null | {
     x: number
@@ -33,5 +34,6 @@ export const defaultMediaEncoderValues: MediaEditorValues = {
   grain: 0,
   sharpen: 0,
   rotation: 0,
+  transformRotation: 0,
   crop: null
 }

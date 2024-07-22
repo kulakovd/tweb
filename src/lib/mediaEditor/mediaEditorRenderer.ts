@@ -72,7 +72,18 @@ export class MediaEditorRenderer {
     }
 
     const kek = this.getImageRectAndScale()
-    this.onResize?.(kek)
+
+    let rect = Rect.from2Points({x: kek.x, y: kek.y}, {x: kek.x + kek.width, y: kek.y + kek.height})
+    rect.rotation = this.values.transformRotation
+    rect = rect.boundingBox
+
+    this.onResize?.({
+      x: rect.topLeft.x,
+      y: rect.topLeft.y,
+      width: rect.width,
+      height: rect.height,
+      scale: kek.scale
+    })
   }
 
   constructor(canvas: HTMLCanvasElement) {
@@ -110,8 +121,17 @@ export class MediaEditorRenderer {
     this.dispatchResize()
   }
 
+  getValues() {
+    return this.values
+  }
+
   updateValues(updates: Partial<MediaEditorValues>) {
+    const transformRotationUpdated = updates.transformRotation !== undefined &&
+      this.values.transformRotation !== updates.transformRotation
     Object.assign(this.values, updates)
+    if(transformRotationUpdated) {
+      this.dispatchResize()
+    }
     console.log('[MediaEditor] updateValues', this.values)
     this.requestFrame()
   }
@@ -183,6 +203,9 @@ export class MediaEditorRenderer {
     requestAnimationFrame((timestamp) => {
       this.switchModeTimer.frame(timestamp)
 
+      const {rotation, transformRotation} = this.values
+      const totalRotation = (rotation + transformRotation) % 360
+
       this.mainCanvas.width = this.width
       this.mainCanvas.height = this.height
       const ctx = this.mainCanvas.getContext('2d')
@@ -205,7 +228,7 @@ export class MediaEditorRenderer {
       } = this.getImageRectAndScale(padding)
 
       const imageRect = Rect.from2Points({x: 0, y: 0}, {x: imageW, y: imageH})
-      imageRect.rotation = this.values.rotation
+      imageRect.rotation = totalRotation
       const bounds = imageRect.boundingBox
 
       // Start rect
@@ -231,7 +254,7 @@ export class MediaEditorRenderer {
         ctx.save()
         ctx.globalAlpha = 1 - elapsed
         ctx.translate(this.width / 2, this.height / 2)
-        ctx.rotate(this.values.rotation * Math.PI / 180)
+        ctx.rotate(totalRotation * Math.PI / 180)
         ctx.drawImage(this.lastBitmap, imageX - this.width / 2, imageY - this.height / 2, imageW, imageH)
         ctx.restore()
       }
@@ -254,8 +277,11 @@ export class MediaEditorRenderer {
     const sw = this.img.width
     const sh = this.img.height
 
+    const {rotation, transformRotation} = this.values
+    const totalRotation = (rotation + transformRotation) % 360
+
     const imageRect = Rect.from2Points({x: 0, y: 0}, {x: sw, y: sh})
-    imageRect.rotation = this.values.rotation
+    imageRect.rotation = totalRotation
     const bounds = imageRect.boundingBox
 
     const helperCanvas = document.createElement('canvas')
@@ -265,7 +291,7 @@ export class MediaEditorRenderer {
     const helperCtx = helperCanvas.getContext('2d')
     helperCtx.save()
     helperCtx.translate(bounds.width / 2, bounds.height / 2)
-    helperCtx.rotate(this.values.rotation * Math.PI / 180)
+    helperCtx.rotate(totalRotation * Math.PI / 180)
 
     helperCtx.drawImage(this.lastBitmap, -sw / 2, -sh / 2)
     helperCtx.restore()

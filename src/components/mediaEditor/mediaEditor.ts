@@ -88,6 +88,13 @@ export class MediaEditor {
       this.renderer.updateValues({rotation});
       this.cropper.updateRotation(rotation);
     }
+    angleGauge.onRotate90 = () => {
+      // 0, 270, 180, 90
+      this.renderer.updateValues({transformRotation: (this.renderer.getValues().transformRotation - 90 + 360) % 360});
+    }
+    angleGauge.onFlip = () => {
+
+    }
 
     this.sidebar = document.createElement('div');
     this.sidebar.classList.add(`${className}-sidebar`);
