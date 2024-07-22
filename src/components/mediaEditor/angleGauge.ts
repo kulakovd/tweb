@@ -12,6 +12,9 @@ const angles = [-180, -165, -150, -135, -120, -105, -90, -75, -60, -45, -30, -15
 const anglesWidth = angles.length * numberWidth
 const zero = -(anglesWidth - gaugeWidth) / 2
 
+const min = -45
+const max = 45
+
 export class AngleGauge {
   public container = document.createElement('div')
   public onChange: (value: number) => void
@@ -95,38 +98,40 @@ export class AngleGauge {
         dots.append(dot)
       }
 
-      attachClickEvent(text, () => {
-        if(this.skipClick) {
-          this.skipClick = false
-          return
-        }
+      if(number <= max && number >= min) {
+        attachClickEvent(text, () => {
+          if(this.skipClick) {
+            this.skipClick = false
+            return
+          }
 
-        // change value smoothly from current to number
-        let startTime: number | null = null
-        const startValue = this.value
-        const duration = 300
-        const loop = () => {
-          requestAnimationFrame((timestamp) => {
-            if(!startTime) {
-              startTime = timestamp
-            }
+          // change value smoothly from current to number
+          let startTime: number | null = null
+          const startValue = this.value
+          const duration = 300
+          const loop = () => {
+            requestAnimationFrame((timestamp) => {
+              if(!startTime) {
+                startTime = timestamp
+              }
 
-            const progress = Math.min((timestamp - startTime) / duration, 1)
-            const value = startValue + (number - startValue) * progress
+              const progress = Math.min((timestamp - startTime) / duration, 1)
+              const value = startValue + (number - startValue) * progress
 
-            this.onChange?.(value)
-            this.value = value
-            this.left = this.valueToPosition(value)
-            this.highlight(this.left)
-            numbers.style.left = `${this.left}px`
+              this.onChange?.(value)
+              this.value = value
+              this.left = this.valueToPosition(value)
+              this.highlight(this.left)
+              numbers.style.left = `${this.left}px`
 
-            if(progress < 1) {
-              loop()
-            }
-          })
-        }
-        loop()
-      })
+              if(progress < 1) {
+                loop()
+              }
+            })
+          }
+          loop()
+        })
+      }
 
       numberEl.append(text, dots)
       numbers.append(numberEl)
@@ -168,16 +173,18 @@ export class AngleGauge {
 
         let value = this.positionToValue(left)
 
-        if(value < -180) {
-          left = this.valueToPosition(-180)
-          value = -180
+        if(value < min) {
+          left = this.valueToPosition(min)
+          value = min
         }
-        if(value > 180) {
-          left = this.valueToPosition(180)
-          value = 180
+        if(value > max) {
+          left = this.valueToPosition(max)
+          value = max
         }
 
-        this.onChange?.(value)
+        if(this.value !== value) {
+          this.onChange?.(value)
+        }
         this.value = value
         this.highlight(left)
 

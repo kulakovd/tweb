@@ -289,6 +289,22 @@ export class Rect {
       rotatedPoint.y >= this._topLeft.y && rotatedPoint.y <= this._bottomRight.y;
   }
 
+  public isInsideOfSegment(point: Point, segment: 'left' | 'top' | 'right' | 'bottom'): boolean {
+    const rotatedPoint = this.unrotatePoint(point);
+    if(segment === 'left') {
+      return rotatedPoint.x >= this._topLeft.x
+    }
+    if(segment === 'top') {
+      return rotatedPoint.y >= this._topLeft.y
+    }
+    if(segment === 'right') {
+      return rotatedPoint.x <= this._bottomRight.x
+    }
+    if(segment === 'bottom') {
+      return rotatedPoint.y <= this._bottomRight.y
+    }
+  }
+
   public get boundingBox(): Rect {
     const {
       topLeft,
@@ -340,6 +356,14 @@ export function findPerpendicularPointOnLine(segment: Segment, point: Point): Po
   return perpendicularPoint;
 }
 
+export function findPerpendicularPointOnSegment(segment: Segment, point: Point): Point | null {
+  const point2 = findPerpendicularPointOnLine(segment, point);
+  if(belongsToSegment(point2, segment)) {
+    return point2;
+  }
+  return null;
+}
+
 export function getIntersection(segment1: Segment, segment2: Segment): Point | null {
   // Вычисляем коэффициенты для уравнений прямых
   const [{x: x1, y: y1}, {x: x2, y: y2}] = segment1;
@@ -374,4 +398,12 @@ export function getIntersection(segment1: Segment, segment2: Segment): Point | n
   }
 
   return null; // Отрезки не пересекаются
+}
+
+function belongsToSegment(point: Point, segment: Segment) {
+  const [{x: x1, y: y1}, {x: x2, y: y2}] = segment;
+  const intersectX = point.x;
+  const intersectY = point.y;
+  return Math.min(x1, x2) <= intersectX && intersectX <= Math.max(x1, x2) &&
+    Math.min(y1, y2) <= intersectY && intersectY <= Math.max(y1, y2)
 }

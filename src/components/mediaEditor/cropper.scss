@@ -1,6 +1,7 @@
 .image-cropper {
   position: absolute;
-  box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
+  // TODO be smarter about this
+  box-shadow: 0 0 0 10000px rgba(0, 0, 0, 0.5);
   transition: opacity 200ms, transform 200ms;
   opacity: 0;
   transform: scale(1.1);
