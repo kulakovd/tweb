@@ -1,35 +1,32 @@
 import {defaultMediaEncoderValues, MediaEditorValues} from './mediaEditorValues'
+import {Rect} from './geometry'
 
 type WorkerEventData = {
   type: 'frameReady'
   bitmap: ImageBitmap
 }
 
-class Animation {
-  private _running = false
-  private duration: number
+type RectAndScale = {x: number, y: number, width: number, height: number, scale: number}
 
-  private startTime: number | null = null
+class AnimationTimer {
+  duration: number
+  startTime: number | null = null
+  running = false
 
-  private startValue: number
-  private currentValue: number
-  private targetValue: number
+  elapsed = 0
 
-  constructor(duration: number, value: number = 0) {
+  constructor(duration: number) {
     this.duration = duration
-    this.startValue = value
-    this.currentValue = value
   }
 
-  update(targetValue: number) {
-    this._running = true
+  start() {
+    this.elapsed = 0
+    this.running = true
     this.startTime = null
-    this.startValue = this.currentValue
-    this.targetValue = targetValue
   }
 
-  animate(timestamp: number) {
-    if(!this._running) {
+  frame(timestamp: number) {
+    if(!this.running) {
       return
     }
 
@@ -37,25 +34,19 @@ class Animation {
       this.startTime = timestamp
     }
 
-    const elapsed = (timestamp - this.startTime) / this.duration
-    this.currentValue = this.startValue + (this.targetValue - this.startValue) * elapsed
-    if(elapsed >= 1) {
-      this.currentValue = this.targetValue
-      this._running = false
+    this.elapsed = Math.min(1, Math.max(0, (timestamp - this.startTime) / this.duration))
+
+    if(this.elapsed >= 1) {
+      this.running = false
+      this.startTime = null
     }
-  }
-
-  get current() {
-    return this.currentValue
-  }
-
-  get running() {
-    return this._running
   }
 }
 
+const paddingInCropMode = 300
+
 export class MediaEditorRenderer {
-  public onRenderFrame: (x: number, y: number, w: number, h: number, values: MediaEditorValues) => void
+  public onResize: (image: RectAndScale) => void
 
   private worker: Worker
   private mainCanvas: HTMLCanvasElement
@@ -71,14 +62,24 @@ export class MediaEditorRenderer {
 
   private values: MediaEditorValues = defaultMediaEncoderValues
 
-  private verticalPadding = new Animation(500, 0)
+  private switchModeTimer = new AnimationTimer(500)
 
-  private animations: Animation[] = [this.verticalPadding]
+  private cropMode = false
+
+  private dispatchResize = () => {
+    if(this.waitingForImage || this.waitingForSize) {
+      return
+    }
+
+    const kek = this.getImageRectAndScale()
+    this.onResize?.(kek)
+  }
 
   constructor(canvas: HTMLCanvasElement) {
     this.img.onload = () => {
       this.waitingForImage = false
       this.requestFrame()
+      this.dispatchResize()
     }
 
     this.mainCanvas = canvas
@@ -106,20 +107,27 @@ export class MediaEditorRenderer {
     this.height = height
 
     this.requestFrame()
+    this.dispatchResize()
   }
 
   updateValues(updates: Partial<MediaEditorValues>) {
     Object.assign(this.values, updates)
-    this.requestFrame()
-  }
-
-  updatePadding(padding: number) {
-    this.verticalPadding.update(padding)
+    console.log('[MediaEditor] updateValues', this.values)
     this.requestFrame()
   }
 
   getOriginalAspectRatio() {
     return this.img.width / this.img.height
+  }
+
+  setCropMode(cropMode: boolean) {
+    this.cropMode = cropMode
+    if(cropMode) {
+      this.switchModeTimer.start()
+    } else {
+      this.switchModeTimer.start()
+    }
+    this.requestFrame()
   }
 
   private requestFrame() {
@@ -150,42 +158,118 @@ export class MediaEditorRenderer {
     }
   }
 
+  private getImageRectAndScale(padding: number = paddingInCropMode): RectAndScale {
+    const sw = this.img.width
+    const sh = this.img.height
+
+    // Image bounds
+    const imageScale = Math.min((this.width) / sw, (this.height - padding) / sh)
+    const imageW = sw * imageScale
+    const imageH = sh * imageScale
+
+    const imageX = (this.width - imageW) / 2
+    const imageY = (this.height - imageH) / 2
+
+    return {
+      x: imageX,
+      y: imageY,
+      width: imageW,
+      height: imageH,
+      scale: imageScale
+    }
+  }
+
   private renderFrame() {
     requestAnimationFrame((timestamp) => {
-      this.animations.forEach((animation) => animation.animate(timestamp))
-
-      const sw = this.img.width
-      const sh = this.img.height
-
-      const padding = this.verticalPadding.current
-      const scale = Math.min((this.width) / sw, (this.height - padding) / sh)
-      const dw = sw * scale
-      const dh = sh * scale
-
-      const dx = (this.width - dw) / 2
-      const dy = (this.height - dh) / 2
-
-      this.onRenderFrame?.(dx, dy, dw, dh, this.values)
+      this.switchModeTimer.frame(timestamp)
 
       this.mainCanvas.width = this.width
       this.mainCanvas.height = this.height
       const ctx = this.mainCanvas.getContext('2d')
 
-      ctx.save()
+      // Draw the whole image in crop mode
+      const elapsed = this.cropMode ? 1 - this.switchModeTimer.elapsed : this.switchModeTimer.elapsed
 
-      const translateX = this.width / 2
-      const translateY = this.height / 2
+      const rotatedImage = this.getRotatedImage()
+      const crop = this.values.crop
+      const padding = (1 - elapsed) * paddingInCropMode
 
-      ctx.translate(translateX, translateY);
-      ctx.rotate(this.values.rotation * Math.PI / 180)
+      const cropScale = Math.min((this.width) / crop.width, (this.height - padding) / crop.height)
 
-      ctx.drawImage(this.lastBitmap, 0, 0, sw, sh, dx - translateX, dy - translateY, dw, dh)
+      const {
+        x: imageX,
+        y: imageY,
+        width: imageW,
+        height: imageH,
+        scale: imageScale
+      } = this.getImageRectAndScale(padding)
 
-      ctx.restore()
+      const imageRect = Rect.from2Points({x: 0, y: 0}, {x: imageW, y: imageH})
+      imageRect.rotation = this.values.rotation
+      const bounds = imageRect.boundingBox
 
-      if(this.animations.some((animation) => animation.running)) {
+      // Start rect
+      const startW = crop.width * imageScale
+      const startH = crop.height * imageScale
+
+      const startX = (crop.x * imageScale - bounds.width / 2 + this.width / 2)
+      const startY = (crop.y * imageScale - bounds.height / 2 + this.height / 2)
+
+      // End rect
+      const endW = crop.width * cropScale
+      const endH = crop.height * cropScale
+
+      const endX = (this.width - endW) / 2
+      const endY = (this.height - endH) / 2
+
+      const currentX = startX + (endX - startX) * elapsed
+      const currentY = startY + (endY - startY) * elapsed
+      const currentW = startW + (endW - startW) * elapsed
+      const currentH = startH + (endH - startH) * elapsed
+
+      if(this.cropMode) {
+        ctx.save()
+        ctx.globalAlpha = 1 - elapsed
+        ctx.translate(this.width / 2, this.height / 2)
+        ctx.rotate(this.values.rotation * Math.PI / 180)
+        ctx.drawImage(this.lastBitmap, imageX - this.width / 2, imageY - this.height / 2, imageW, imageH)
+        ctx.restore()
+      }
+
+      if(!this.cropMode || (this.cropMode && this.switchModeTimer.running)) {
+        ctx.drawImage(
+          rotatedImage,
+          crop.x, crop.y, crop.width, crop.height,
+          currentX, currentY, currentW, currentH
+        )
+      }
+
+      if(this.switchModeTimer.running) {
         this.renderFrame()
       }
     })
+  }
+
+  private getRotatedImage(): HTMLCanvasElement {
+    const sw = this.img.width
+    const sh = this.img.height
+
+    const imageRect = Rect.from2Points({x: 0, y: 0}, {x: sw, y: sh})
+    imageRect.rotation = this.values.rotation
+    const bounds = imageRect.boundingBox
+
+    const helperCanvas = document.createElement('canvas')
+    helperCanvas.width = bounds.width
+    helperCanvas.height = bounds.height
+
+    const helperCtx = helperCanvas.getContext('2d')
+    helperCtx.save()
+    helperCtx.translate(bounds.width / 2, bounds.height / 2)
+    helperCtx.rotate(this.values.rotation * Math.PI / 180)
+
+    helperCtx.drawImage(this.lastBitmap, -sw / 2, -sh / 2)
+    helperCtx.restore()
+
+    return helperCanvas
   }
 }

@@ -70,7 +70,7 @@ export function enhanceTab(tab: HTMLDivElement, mc: MediaEditor) {
     const range = rangeSlider({
       min: tool.scale === 'absolute' ? 0 : -100,
       max: 100,
-      value: defaultMediaEncoderValues[tool.name],
+      value: defaultMediaEncoderValues[tool.name] as number,
       label: tool.label,
       highlight: true,
       color: 'var(--primary-color)',

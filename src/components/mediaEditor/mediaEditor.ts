@@ -61,12 +61,12 @@ export class MediaEditor {
     const canvas = document.createElement('canvas');
     canvas.classList.add(`${className}-canvas`);
     this.renderer = new MediaEditorRenderer(canvas);
-    this.renderer.onRenderFrame = (x, y, w, h, values) => {
-      cropper.update(x, y, w, h, values.rotation);
-    }
+    this.renderer.onResize = (image) => {
+      this.cropper.update(image)
+    };
 
     new ResizeObserver(([container]) => {
-      const {width, height, left, top} = container.contentRect;
+      const {width, height} = container.contentRect;
       this.renderer.updateSize(width, height);
       angleGauge.init();
     }).observe(canvasContainer);
@@ -76,11 +76,17 @@ export class MediaEditor {
     const cropper = new Cropper();
     this.cropper = cropper;
     canvasContainer.append(cropper.container);
+    cropper.onChange = (value: MediaEditorValues['crop']) => {
+      this.renderer.updateValues({
+        crop: value
+      });
+    }
 
     const angleGauge = new AngleGauge();
     canvasContainer.append(angleGauge.container);
     angleGauge.onChange = (rotation) => {
       this.renderer.updateValues({rotation});
+      this.cropper.updateRotation(rotation);
     }
 
     this.sidebar = document.createElement('div');
@@ -96,11 +102,11 @@ export class MediaEditor {
 
     this.selectTab = horizontalMenu(tabs, content, (tabIdx) => {
       if(tabIdx === 1) {
-        this.renderer.updatePadding(300)
+        this.renderer.setCropMode(true);
         angleGauge.container.classList.add('visible')
         cropper.container.classList.add('visible')
       } else {
-        this.renderer.updatePadding(0)
+        this.renderer.setCropMode(false);
         angleGauge.container.classList.remove('visible')
         cropper.container.classList.remove('visible')
       }

@@ -1,6 +1,7 @@
 import attachGrabListeners from '../../helpers/dom/attachGrabListeners'
-import {findPerpendicularPointOnLine, getIntersection, Point, Rect, Vector} from './cropperMath'
+import {findPerpendicularPointOnLine, getIntersection, Point, Rect, Vector} from '../../lib/mediaEditor/geometry'
 import './cropper.scss';
+import {MediaEditorValues} from '../../lib/mediaEditor/mediaEditorValues'
 
 const className = 'image-cropper';
 
@@ -8,10 +9,35 @@ const moveAnimDuration = 400;
 
 export class Cropper {
   public container: HTMLElement;
+  public onChange: (value: MediaEditorValues['crop']) => void;
 
   private cropRect: Rect = new Rect();
   private imageRect: Rect = new Rect();
   private hasChanged = false;
+
+  private scale = 1;
+
+  private prevValue: Rect | null = null;
+  private prevRotation = this.imageRect.rotation;
+  private updateValue() {
+    if(this.onChange) {
+      const newValue = this.cropRect.clone();
+      if(this.prevValue !== null && newValue.equals(this.prevValue) && this.imageRect.rotation === this.prevRotation) {
+        return;
+      }
+
+      this.prevValue = newValue;
+      this.prevRotation = this.imageRect.rotation;
+
+      const bounds = this.imageRect.boundingBox;
+      this.onChange({
+        x: (newValue.topLeft.x - bounds.topLeft.x) / this.scale,
+        y: (newValue.topLeft.y - bounds.topLeft.y) / this.scale,
+        width: newValue.width / this.scale,
+        height: newValue.height / this.scale
+      });
+    }
+  }
 
   constructor() {
     this.container = document.createElement('div');
@@ -40,6 +66,9 @@ export class Cropper {
           this.hasChanged = true;
           const cropRect = this.resizeToFil(startRect);
           this.setCoords(cropRect);
+        },
+        () => {
+          this.updateValue();
         }
       );
     })
@@ -66,6 +95,7 @@ export class Cropper {
         stopAnimation = true;
       },
       ({x, y}) => {
+        this.hasChanged = true;
         const newRect = startRect.clone();
         newRect.move({x, y})
 
@@ -99,6 +129,7 @@ export class Cropper {
             } else {
               startRect.move(animMoveVector);
               this.setCoords(startRect);
+              this.updateValue();
             }
           });
         }
@@ -110,26 +141,46 @@ export class Cropper {
     this.container.append(grid);
   }
 
-  public update(x: number, y: number, w: number, h: number, rotation: number) {
+  public update({
+    x, y, width, height, scale
+  }: {
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    scale: number,
+  }) {
+    this.scale = scale;
+    this.imageRect = Rect.from2Points(
+      {x, y},
+      {x: x + width, y: y + height}
+    );
+
     if(!this.hasChanged) {
       this.cropRect = this.cropRect.clone();
       this.cropRect.topLeft = {x, y};
-      this.cropRect.bottomRight = {x: x + w, y: y + h};
+      this.cropRect.bottomRight = {x: x + width, y: y + height};
+
+      this.setCoords(this.resizeToFil(this.cropRect));
+      this.updateValue();
     }
+  }
 
-    this.imageRect = Rect.from2Points({x, y}, {x: x + w, y: y + h});
+  public updateRotation(rotation: number) {
     this.imageRect.rotation = rotation;
-
     const cropRect = this.resizeToFil(this.cropRect);
     this.setCoords(cropRect);
+    this.updateValue();
   }
 
   public setAspectRatio(aspectRatio: number) {
     const cropRect = this.cropRect.clone()
     if(this.imageRect.width > 0) {
       cropRect.setAspectRatio(aspectRatio, this.imageRect.width, this.imageRect.height);
+      this.hasChanged = true;
     }
     this.setCoords(this.resizeToFil(cropRect));
+    this.updateValue();
   }
 
   private moveToFit(_cropRect: Rect): {
@@ -156,7 +207,6 @@ export class Cropper {
         moveVector.y += imageRect.bottomRight.y - cropRect.bottomRight.y;
       }
     } else {
-      // Особый случай -- две точки на одной диагонали за пределами картинки
       const topLeftOutside = !imageRect.isInside(cropRect.topLeft);
       const topRightOutside = !imageRect.isInside(cropRect.topRight);
       const bottomRightOutside = !imageRect.isInside(cropRect.bottomRight);

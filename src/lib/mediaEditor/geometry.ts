@@ -288,6 +288,28 @@ export class Rect {
     return rotatedPoint.x >= this._topLeft.x && rotatedPoint.x <= this._bottomRight.x &&
       rotatedPoint.y >= this._topLeft.y && rotatedPoint.y <= this._bottomRight.y;
   }
+
+  public get boundingBox(): Rect {
+    const {
+      topLeft,
+      topRight,
+      bottomLeft,
+      bottomRight
+    } = this;
+
+    const minX = Math.min(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x);
+    const minY = Math.min(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y);
+    const maxX = Math.max(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x);
+    const maxY = Math.max(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y);
+
+    return Rect.from2Points({x: minX, y: minY}, {x: maxX, y: maxY});
+  }
+
+  public equals(rect: Rect): boolean {
+    return this._topLeft.x === rect._topLeft.x && this._topLeft.y === rect._topLeft.y &&
+      this._bottomRight.x === rect._bottomRight.x && this._bottomRight.y === rect._bottomRight.y &&
+      this._rotation === rect._rotation;
+  }
 }
 
 export function findPerpendicularPointOnLine(segment: Segment, point: Point): Point {
