@@ -93,7 +93,7 @@ export class MediaEditor {
       this.renderer.updateValues({transformRotation: (this.renderer.getValues().transformRotation - 90 + 360) % 360});
     }
     angleGauge.onFlip = () => {
-
+      this.renderer.flip();
     }
 
     this.sidebar = document.createElement('div');

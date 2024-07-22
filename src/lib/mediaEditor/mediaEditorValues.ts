@@ -1,3 +1,4 @@
+// TODO split filters and other values
 export type MediaEditorValues = {
   enhance: number
   brightness: number
@@ -12,6 +13,7 @@ export type MediaEditorValues = {
   sharpen: number
   rotation: number
   transformRotation: number
+  flip: boolean
   // Coordinates of the crop rectangle relative to the image bounds
   crop: null | {
     x: number
@@ -35,5 +37,6 @@ export const defaultMediaEncoderValues: MediaEditorValues = {
   sharpen: 0,
   rotation: 0,
   transformRotation: 0,
+  flip: false,
   crop: null
 }

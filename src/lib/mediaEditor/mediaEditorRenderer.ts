@@ -63,6 +63,7 @@ export class MediaEditorRenderer {
   private values: MediaEditorValues = defaultMediaEncoderValues
 
   private switchModeTimer = new AnimationTimer(500)
+  private flipTimer = new AnimationTimer(500)
 
   private cropMode = false
 
@@ -125,6 +126,13 @@ export class MediaEditorRenderer {
     return this.values
   }
 
+  flip() {
+    if(!this.flipTimer.running) {
+      this.flipTimer.start()
+      this.updateValues({flip: !this.values.flip})
+    }
+  }
+
   updateValues(updates: Partial<MediaEditorValues>) {
     const transformRotationUpdated = updates.transformRotation !== undefined &&
       this.values.transformRotation !== updates.transformRotation
@@ -132,7 +140,6 @@ export class MediaEditorRenderer {
     if(transformRotationUpdated) {
       this.dispatchResize()
     }
-    console.log('[MediaEditor] updateValues', this.values)
     this.requestFrame()
   }
 
@@ -141,6 +148,10 @@ export class MediaEditorRenderer {
   }
 
   setCropMode(cropMode: boolean) {
+    if(this.cropMode === cropMode) {
+      return
+    }
+
     this.cropMode = cropMode
     if(cropMode) {
       this.switchModeTimer.start()
@@ -182,13 +193,15 @@ export class MediaEditorRenderer {
     const sw = this.img.width
     const sh = this.img.height
 
+    const {width, height} = this
+
     // Image bounds
-    const imageScale = Math.min((this.width) / sw, (this.height - padding) / sh)
+    const imageScale = Math.min((width - padding) / sw, (height - padding) / sh)
     const imageW = sw * imageScale
     const imageH = sh * imageScale
 
-    const imageX = (this.width - imageW) / 2
-    const imageY = (this.height - imageH) / 2
+    const imageX = (width - imageW) / 2
+    const imageY = (height - imageH) / 2
 
     return {
       x: imageX,
@@ -202,6 +215,7 @@ export class MediaEditorRenderer {
   private renderFrame() {
     requestAnimationFrame((timestamp) => {
       this.switchModeTimer.frame(timestamp)
+      this.flipTimer.frame(timestamp)
 
       const {rotation, transformRotation} = this.values
       const totalRotation = (rotation + transformRotation) % 360
@@ -210,14 +224,13 @@ export class MediaEditorRenderer {
       this.mainCanvas.height = this.height
       const ctx = this.mainCanvas.getContext('2d')
 
-      // Draw the whole image in crop mode
       const elapsed = this.cropMode ? 1 - this.switchModeTimer.elapsed : this.switchModeTimer.elapsed
 
       const rotatedImage = this.getRotatedImage()
       const crop = this.values.crop
       const padding = (1 - elapsed) * paddingInCropMode
 
-      const cropScale = Math.min((this.width) / crop.width, (this.height - padding) / crop.height)
+      const cropScale = Math.min((this.width - padding) / crop.width, (this.height - padding) / crop.height)
 
       const {
         x: imageX,
@@ -250,12 +263,27 @@ export class MediaEditorRenderer {
       const currentW = startW + (endW - startW) * elapsed
       const currentH = startH + (endH - startH) * elapsed
 
+      const flipElapsed = this.flipTimer.running ?
+        (this.values.flip ? this.flipTimer.elapsed : 1 - this.flipTimer.elapsed) :
+        (this.values.flip ? 1 : 0)
+
+      const flipTransform = {
+        a: (1 - flipElapsed) * 2 - 1, // 1 to -1
+        b: (flipElapsed > 0.5 ? Math.abs(flipElapsed - 1) : flipElapsed) * 0.4 // 0 -> 0.2 -> 0
+      }
+
       if(this.cropMode) {
+        const translate = {
+          x: this.width / 2,
+          y: this.height / 2
+        }
+
         ctx.save()
         ctx.globalAlpha = 1 - elapsed
-        ctx.translate(this.width / 2, this.height / 2)
+        ctx.translate(translate.x, translate.y)
         ctx.rotate(totalRotation * Math.PI / 180)
-        ctx.drawImage(this.lastBitmap, imageX - this.width / 2, imageY - this.height / 2, imageW, imageH)
+        ctx.transform(flipTransform.a, flipTransform.b, 0, 1, 0, 0)
+        ctx.drawImage(this.lastBitmap, imageX - translate.x, imageY - translate.y, imageW, imageH)
         ctx.restore()
       }
 
@@ -267,7 +295,7 @@ export class MediaEditorRenderer {
         )
       }
 
-      if(this.switchModeTimer.running) {
+      if(this.switchModeTimer.running || this.flipTimer.running) {
         this.renderFrame()
       }
     })
@@ -284,18 +312,21 @@ export class MediaEditorRenderer {
     imageRect.rotation = totalRotation
     const bounds = imageRect.boundingBox
 
-    const helperCanvas = document.createElement('canvas')
-    helperCanvas.width = bounds.width
-    helperCanvas.height = bounds.height
+    const canvas = document.createElement('canvas')
+    canvas.width = bounds.width
+    canvas.height = bounds.height
 
-    const helperCtx = helperCanvas.getContext('2d')
-    helperCtx.save()
-    helperCtx.translate(bounds.width / 2, bounds.height / 2)
-    helperCtx.rotate(totalRotation * Math.PI / 180)
+    const ctx = canvas.getContext('2d')
+    ctx.save()
+    ctx.translate(bounds.width / 2, bounds.height / 2)
+    ctx.rotate(totalRotation * Math.PI / 180)
+    if(this.values.flip) {
+      ctx.transform(-1, 0, 0, 1, 0, 0)
+    }
 
-    helperCtx.drawImage(this.lastBitmap, -sw / 2, -sh / 2)
-    helperCtx.restore()
+    ctx.drawImage(this.lastBitmap, -sw / 2, -sh / 2)
+    ctx.restore()
 
-    return helperCanvas
+    return canvas
   }
 }
