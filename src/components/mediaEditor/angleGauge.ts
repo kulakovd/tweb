@@ -17,7 +17,7 @@ const max = 45
 
 export class AngleGauge {
   public container = document.createElement('div')
-  public onChange: (value: number) => void
+  public onChange: (value: number, final: boolean) => void
   public onRotate90: () => void
   public onFlip: () => void
 
@@ -65,6 +65,13 @@ export class AngleGauge {
   }
 
   private skipClick = false
+
+  public setValue(value: number) {
+    this.value = value
+    this.left = this.valueToPosition(value)
+    this.highlight(this.left)
+    this.numbers.style.left = `${this.left}px`
+  }
 
   constructor() {
     this.container.classList.add(className)
@@ -118,7 +125,7 @@ export class AngleGauge {
               const progress = Math.min((timestamp - startTime) / duration, 1)
               const value = startValue + (number - startValue) * progress
 
-              this.onChange?.(value)
+              this.onChange?.(value, progress >= 1)
               this.value = value
               this.left = this.valueToPosition(value)
               this.highlight(this.left)
@@ -183,13 +190,16 @@ export class AngleGauge {
         }
 
         if(this.value !== value) {
-          this.onChange?.(value)
+          this.onChange?.(value, false)
         }
         this.value = value
         this.highlight(left)
 
         this.left = left
         numbers.style.left = `${left}px`
+      },
+      () => {
+        this.onChange?.(this.value, true)
       }
     )
   }

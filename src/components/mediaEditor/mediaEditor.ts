@@ -11,17 +11,20 @@ import rootScope from '../../lib/rootScope'
 import {AppManagers} from '../../lib/appManagers/managers'
 import {stickersTab} from './tabs/stickersTab'
 import {MediaEditorRenderer} from '../../lib/mediaEditor/mediaEditorRenderer'
-import {MediaEditorValues} from '../../lib/mediaEditor/mediaEditorValues'
 import {AngleGauge} from './angleGauge'
 import {Cropper} from './cropper'
+import {MediaEditorState} from '../../lib/mediaEditor/mediaEditorState'
+import {attachClickEvent} from '../../helpers/dom/clickEvent'
 
 const className = 'media-editor';
 
 export type AspectRatio = {
   type: 'free' | 'original';
+  index: number;
 } | {
   type: 'value';
   value: number;
+  index: number;
 }
 
 const toolsTabs: Array<{
@@ -48,6 +51,8 @@ export class MediaEditor {
   private selectTab: (id: number | HTMLElement, animate?: boolean) => void;
   public managers: AppManagers
 
+  public readonly state = new MediaEditorState()
+
   constructor() {
     this.managers = rootScope.managers;
 
@@ -60,7 +65,7 @@ export class MediaEditor {
 
     const canvas = document.createElement('canvas');
     canvas.classList.add(`${className}-canvas`);
-    this.renderer = new MediaEditorRenderer(canvas);
+    this.renderer = new MediaEditorRenderer(canvas, this.state);
     this.renderer.onResize = (image) => {
       this.cropper.update(image)
     };
@@ -73,28 +78,13 @@ export class MediaEditor {
 
     canvasContainer.append(canvas);
 
-    const cropper = new Cropper();
-    this.cropper = cropper;
-    canvasContainer.append(cropper.container);
-    cropper.onChange = (value: MediaEditorValues['crop']) => {
-      this.renderer.updateValues({
-        crop: value
-      });
-    }
-
     const angleGauge = new AngleGauge();
+
+    const cropper = new Cropper(this.state, angleGauge);
+    this.cropper = cropper;
+
+    canvasContainer.append(cropper.container);
     canvasContainer.append(angleGauge.container);
-    angleGauge.onChange = (rotation) => {
-      this.renderer.updateValues({rotation});
-      this.cropper.updateRotation(rotation);
-    }
-    angleGauge.onRotate90 = () => {
-      // 0, 270, 180, 90
-      this.renderer.updateValues({transformRotation: (this.renderer.getValues().transformRotation - 90 + 360) % 360});
-    }
-    angleGauge.onFlip = () => {
-      this.renderer.flip();
-    }
 
     this.sidebar = document.createElement('div');
     this.sidebar.classList.add(`${className}-sidebar`);
@@ -119,7 +109,8 @@ export class MediaEditor {
       }
     });
 
-    this.selectTab(1, false);
+    this.selectTab(0, false);
+    this.onKeydown = this.onKeydown.bind(this);
   }
 
   private constructNavBar() {
@@ -136,9 +127,15 @@ export class MediaEditor {
     navBar.append(title);
 
     const undoBtn = ButtonIcon('undo');
+    attachClickEvent(undoBtn, () => {
+      this.state.undo();
+    })
     navBar.append(undoBtn);
 
     const redoBtn = ButtonIcon('redo');
+    attachClickEvent(redoBtn, () => {
+      this.state.redo();
+    })
     navBar.append(redoBtn);
   }
 
@@ -185,26 +182,37 @@ export class MediaEditor {
     return content
   }
 
+  private onKeydown(e: KeyboardEvent) {
+    const ctrl = e.ctrlKey || e.metaKey;
+    if(ctrl && e.key === 'z') {
+      if(e.shiftKey) {
+        this.state.redo();
+      } else {
+        this.state.undo();
+      }
+    }
+  }
+
   open(media: HTMLImageElement) {
     this.bodyEl.append(this.container);
     this.renderer.loadMedia(media.src);
+
+    document.addEventListener('keydown', this.onKeydown);
   }
 
   close() {
     this.container.remove();
-  }
 
-  updateValues(updates: Partial<MediaEditorValues>) {
-    this.renderer.updateValues(updates);
+    document.removeEventListener('keydown', this.onKeydown);
   }
 
   updateAspectRatio(aspectRatio: AspectRatio) {
     if(aspectRatio.type === 'free') {
-      this.cropper.setAspectRatio(null);
+      this.cropper.setAspectRatio(null, aspectRatio.index);
     } else if(aspectRatio.type === 'original') {
-      this.cropper.setAspectRatio(this.renderer.getOriginalAspectRatio());
+      this.cropper.setAspectRatio(this.renderer.getOriginalAspectRatio(), aspectRatio.index);
     } else if(aspectRatio.type === 'value') {
-      this.cropper.setAspectRatio(aspectRatio.value);
+      this.cropper.setAspectRatio(aspectRatio.value, aspectRatio.index);
     }
   }
 }

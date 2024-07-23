@@ -91,8 +91,8 @@ export class Rect {
     if(this._aspectRatio !== null) {
       const corner = this._topLeft;
 
-      const diffX = corner.x - value.x;
-      const diffY = corner.y - value.y;
+      const diffX = Math.abs(corner.x - value.x);
+      const diffY = Math.abs(corner.y - value.y);
 
       let width, height;
       if(diffX > diffY) {
@@ -116,8 +116,8 @@ export class Rect {
     if(this._aspectRatio !== null) {
       const corner = this._topLeft;
 
-      const diffX = value.x - corner.x;
-      const diffY = corner.y - value.y;
+      const diffX = Math.abs(value.x - corner.x);
+      const diffY = Math.abs(corner.y - value.y);
 
       let width, height;
       if(diffX > diffY) {
@@ -146,8 +146,8 @@ export class Rect {
     if(this._aspectRatio !== null) {
       const corner = this._bottomRight;
 
-      const diffX = corner.x - value.x;
-      const diffY = value.y - corner.y;
+      const diffX = Math.abs(corner.x - value.x);
+      const diffY = Math.abs(value.y - corner.y);
 
       let width, height;
       if(diffX > diffY) {
@@ -176,8 +176,8 @@ export class Rect {
     if(this._aspectRatio !== null) {
       const corner = this._bottomRight;
 
-      const diffX = corner.x - value.x;
-      const diffY = corner.y - value.y;
+      const diffX = Math.abs(corner.x - value.x);
+      const diffY = Math.abs(corner.y - value.y);
 
       let width, height;
       if(diffX > diffY) {
@@ -195,6 +195,14 @@ export class Rect {
     } else {
       this._bottomRight = value;
     }
+  }
+
+  get aspectRatio() {
+    return this._aspectRatio;
+  }
+
+  setAspectRatioWithoutChangingSize(value: number | null) {
+    this._aspectRatio = value;
   }
 
   setAspectRatio(value: number | null, maxWidth: number, maxHeight: number) {

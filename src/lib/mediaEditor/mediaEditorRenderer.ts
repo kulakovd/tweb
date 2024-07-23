@@ -1,12 +1,13 @@
 import {defaultMediaEncoderValues, MediaEditorValues} from './mediaEditorValues'
 import {Rect} from './geometry'
+import {MediaEditorState} from './mediaEditorState'
 
 type WorkerEventData = {
   type: 'frameReady'
   bitmap: ImageBitmap
 }
 
-type RectAndScale = {x: number, y: number, width: number, height: number, scale: number}
+type RectAndScale = {x: number, y: number, width: number, height: number, scale: number, isRestored: boolean}
 
 class AnimationTimer {
   duration: number
@@ -60,14 +61,14 @@ export class MediaEditorRenderer {
   private width = 0
   private height = 0
 
-  private values: MediaEditorValues = defaultMediaEncoderValues
+  private values: MediaEditorValues = structuredClone(defaultMediaEncoderValues)
 
   private switchModeTimer = new AnimationTimer(500)
   private flipTimer = new AnimationTimer(500)
 
   private cropMode = false
 
-  private dispatchResize = () => {
+  private dispatchResize = (isRestored: boolean = false) => {
     if(this.waitingForImage || this.waitingForSize) {
       return
     }
@@ -83,11 +84,14 @@ export class MediaEditorRenderer {
       y: rect.topLeft.y,
       width: rect.width,
       height: rect.height,
-      scale: kek.scale
+      scale: kek.scale,
+      isRestored
     })
   }
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, private state: MediaEditorState) {
+    this.switchModeTimer.elapsed = 1
+
     this.img.onload = () => {
       this.waitingForImage = false
       this.requestFrame()
@@ -104,6 +108,17 @@ export class MediaEditorRenderer {
           this.onFrameReady(data.bitmap)
           break
       }
+    })
+
+    state.addEventListener('changed', (values, fields, isRestored) => {
+      this.values = values
+      if(fields.includes('transformRotation')) {
+        this.dispatchResize(isRestored)
+      }
+      if(fields.includes('flip')) {
+        this.flipTimer.start()
+      }
+      this.requestFrame()
     })
   }
 
@@ -122,27 +137,6 @@ export class MediaEditorRenderer {
     this.dispatchResize()
   }
 
-  getValues() {
-    return this.values
-  }
-
-  flip() {
-    if(!this.flipTimer.running) {
-      this.flipTimer.start()
-      this.updateValues({flip: !this.values.flip})
-    }
-  }
-
-  updateValues(updates: Partial<MediaEditorValues>) {
-    const transformRotationUpdated = updates.transformRotation !== undefined &&
-      this.values.transformRotation !== updates.transformRotation
-    Object.assign(this.values, updates)
-    if(transformRotationUpdated) {
-      this.dispatchResize()
-    }
-    this.requestFrame()
-  }
-
   getOriginalAspectRatio() {
     return this.img.width / this.img.height
   }
@@ -153,11 +147,7 @@ export class MediaEditorRenderer {
     }
 
     this.cropMode = cropMode
-    if(cropMode) {
-      this.switchModeTimer.start()
-    } else {
-      this.switchModeTimer.start()
-    }
+    this.switchModeTimer.start()
     this.requestFrame()
   }
 
@@ -208,7 +198,8 @@ export class MediaEditorRenderer {
       y: imageY,
       width: imageW,
       height: imageH,
-      scale: imageScale
+      scale: imageScale,
+      isRestored: false
     }
   }
 

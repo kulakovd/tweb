@@ -20,6 +20,8 @@ export type MediaEditorValues = {
     y: number
     width: number
     height: number
+    aspectRatio: number
+    aspectRatioIndex: number
   }
 }
 

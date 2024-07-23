@@ -110,14 +110,22 @@ export function cropTab(tab: HTMLDivElement, me: MediaEditor) {
   const select = buttonsSelector(selector, (index) => {
     const option = aspectRatioOptions[index];
     if(option.type === 'free') {
-      me.updateAspectRatio({type: 'free'});
+      me.updateAspectRatio({type: 'free', index});
     } else if(option.type === 'original') {
-      me.updateAspectRatio({type: 'original'});
+      me.updateAspectRatio({type: 'original', index});
     } else if(option.type === 'value') {
-      me.updateAspectRatio({type: 'value', value: option.value});
+      me.updateAspectRatio({type: 'value', index, value: option.value});
     }
   });
   select(0);
+
+  me.state.addEventListener('changed', (values, fields) => {
+    if(fields.includes('crop')) {
+      if(values.crop) {
+        select(values.crop.aspectRatioIndex, true);
+      }
+    }
+  });
 
   tab.append(span, selector);
 }

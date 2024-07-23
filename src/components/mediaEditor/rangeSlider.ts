@@ -6,7 +6,7 @@ type RangeSliderParams = {
   max: number;
   value: number;
   label: LangPackKey;
-  onChange: (value: number) => void;
+  onChange: (value: number, final: boolean) => void;
   highlight?: boolean;
   color?: string;
 };
@@ -49,7 +49,12 @@ export function rangeSlider(params: RangeSliderParams) {
   }
 
   range.addEventListener('input', () => {
-    params.onChange(+range.value);
+    params.onChange(+range.value, false);
+    handleChange()
+  });
+
+  range.addEventListener('change', () => {
+    params.onChange(+range.value, true);
     handleChange()
   });
 
@@ -63,8 +68,14 @@ export function rangeSlider(params: RangeSliderParams) {
     container.style.setProperty('--color', sliderColor);
   }
 
+  function setValue(newValue: number) {
+    range.value = '' + newValue;
+    handleChange();
+  }
+
   return {
     container,
-    updateColor
+    updateColor,
+    setValue
   };
 }

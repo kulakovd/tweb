@@ -1,7 +1,8 @@
 import attachGrabListeners from '../../helpers/dom/attachGrabListeners'
 import {findPerpendicularPointOnLine, getIntersection, Point, Rect, Vector} from '../../lib/mediaEditor/geometry'
 import './cropper.scss';
-import {MediaEditorValues} from '../../lib/mediaEditor/mediaEditorValues'
+import {MediaEditorState} from '../../lib/mediaEditor/mediaEditorState'
+import {AngleGauge} from './angleGauge'
 
 const className = 'image-cropper';
 
@@ -9,37 +10,52 @@ const moveAnimDuration = 400;
 
 export class Cropper {
   public container: HTMLElement;
-  public onChange: (value: MediaEditorValues['crop']) => void;
 
   private cropRect: Rect = new Rect();
   private imageRect: Rect = new Rect();
   private hasChanged = false;
 
+  private inited = false
+
   private scale = 1;
+  private aspectRatioIndex = 0;
+  private transformRotation = 0;
 
   private prevValue: Rect | null = null;
   private prevRotation = this.imageRect.rotation;
-  private updateValue() {
-    if(this.onChange) {
-      const newValue = this.cropRect.clone();
-      if(this.prevValue !== null && newValue.equals(this.prevValue) && this.imageRect.rotation === this.prevRotation) {
-        return;
-      }
+  private prevTransformRotation = this.transformRotation;
 
-      this.prevValue = newValue;
-      this.prevRotation = this.imageRect.rotation;
-
-      const bounds = this.imageRect.boundingBox;
-      this.onChange({
-        x: (newValue.topLeft.x - bounds.topLeft.x) / this.scale,
-        y: (newValue.topLeft.y - bounds.topLeft.y) / this.scale,
-        width: newValue.width / this.scale,
-        height: newValue.height / this.scale
-      });
+  private calcCropRect(cropRect: Rect) {
+    const bounds = this.imageRect.boundingBox;
+    return {
+      x: (cropRect.topLeft.x - bounds.topLeft.x) / this.scale,
+      y: (cropRect.topLeft.y - bounds.topLeft.y) / this.scale,
+      width: cropRect.width / this.scale,
+      height: cropRect.height / this.scale,
+      aspectRatio: cropRect.aspectRatio,
+      aspectRatioIndex: this.aspectRatioIndex
     }
   }
 
-  constructor() {
+  private commitCrop() {
+    const newValue = this.cropRect.clone();
+    if(this.prevValue !== null &&
+      newValue.equals(this.prevValue) &&
+      this.imageRect.rotation === this.prevRotation &&
+      this.transformRotation === this.prevTransformRotation
+    ) {
+      return;
+    }
+    this.prevValue = newValue;
+    this.prevRotation = this.imageRect.rotation;
+    this.state.commit({
+      crop: this.calcCropRect(newValue),
+      rotation: this.imageRect.rotation,
+      transformRotation: this.transformRotation
+    })
+  }
+
+  constructor(private state: MediaEditorState, private angleGauge: AngleGauge) {
     this.container = document.createElement('div');
     this.container.classList.add(className);
 
@@ -68,7 +84,7 @@ export class Cropper {
           this.setCoords(cropRect);
         },
         () => {
-          this.updateValue();
+          this.commitCrop();
         }
       );
     })
@@ -129,7 +145,8 @@ export class Cropper {
             } else {
               startRect.move(animMoveVector);
               this.setCoords(startRect);
-              this.updateValue();
+              // TODO commit before animation
+              this.commitCrop();
             }
           });
         }
@@ -139,17 +156,47 @@ export class Cropper {
     );
 
     this.container.append(grid);
+
+    angleGauge.onChange = (rotation, final) => {
+      this.updateRotation(rotation, final);
+    }
+    angleGauge.onRotate90 = () => {
+      this.state.rotateCounterClockwise();
+    }
+    angleGauge.onFlip = () => {
+      this.state.commitFlip();
+    }
+
+    state.addEventListener('changed', (values, fields) => {
+      if(fields.includes('crop') || fields.includes('rotation')) {
+        angleGauge.setValue(values.rotation);
+        this.imageRect.rotation = values.rotation;
+        const bounds = this.imageRect.boundingBox;
+        const x = bounds.topLeft.x + values.crop.x * this.scale;
+        const y = bounds.topLeft.y + values.crop.y * this.scale;
+        const width = values.crop.width * this.scale;
+        const height = values.crop.height * this.scale;
+        this.cropRect = Rect.from2Points(
+          {x, y},
+          {x: x + width, y: y + height}
+        );
+        this.cropRect.setAspectRatioWithoutChangingSize(values.crop.aspectRatio);
+        this.setCoords(this.cropRect);
+      }
+    })
   }
 
   public update({
-    x, y, width, height, scale
+    x, y, width, height, scale, isRestored
   }: {
     x: number,
     y: number,
     width: number,
     height: number,
     scale: number,
+    isRestored: boolean
   }) {
+    this.transformRotation = this.state.current.transformRotation;
     this.scale = scale;
     const rotation = this.imageRect.rotation;
     this.imageRect = Rect.from2Points(
@@ -165,11 +212,24 @@ export class Cropper {
     }
 
     this.setCoords(this.resizeToFil(this.cropRect));
-    this.updateValue();
+
+    if(isRestored) {
+      return;
+    }
+
+    if(this.inited) {
+      this.commitCrop();
+    } else {
+      this.inited = true;
+      this.state.setDefaultCrop(this.calcCropRect(this.cropRect));
+    }
   }
 
-  public updateRotation(rotation: number) {
+  public updateRotation(rotation: number, final: boolean) {
     this.imageRect.rotation = rotation;
+    this.state.update({
+      rotation
+    })
 
     if(!this.hasChanged) {
       this.cropRect = this.imageRect.clone();
@@ -178,17 +238,23 @@ export class Cropper {
 
     const cropRect = this.resizeToFil(this.cropRect);
     this.setCoords(cropRect);
-    this.updateValue();
+    if(final) {
+      this.commitCrop();
+    }
   }
 
-  public setAspectRatio(aspectRatio: number) {
+  public setAspectRatio(aspectRatio: number | null, index: number) {
+    if(this.aspectRatioIndex === index) {
+      return;
+    }
+    this.aspectRatioIndex = index;
     const cropRect = this.cropRect.clone()
     if(this.imageRect.width > 0) {
       cropRect.setAspectRatio(aspectRatio, this.imageRect.width, this.imageRect.height);
       this.hasChanged = true;
     }
     this.setCoords(this.resizeToFil(cropRect));
-    this.updateValue();
+    this.commitCrop();
   }
 
   private moveToFit(_cropRect: Rect): {

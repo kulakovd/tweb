@@ -66,6 +66,13 @@ const enhanceTools: Array<{
 ]
 
 export function enhanceTab(tab: HTMLDivElement, mc: MediaEditor) {
+  const kek: Partial<Record<keyof MediaEditorValues, (value: number) => void>> = {}
+  mc.state.addEventListener('changed', (values, fields) => {
+    fields.forEach(field => {
+      kek[field]?.(values[field] as number)
+    })
+  })
+
   enhanceTools.forEach(tool => {
     const range = rangeSlider({
       min: tool.scale === 'absolute' ? 0 : -100,
@@ -74,10 +81,16 @@ export function enhanceTab(tab: HTMLDivElement, mc: MediaEditor) {
       label: tool.label,
       highlight: true,
       color: 'var(--primary-color)',
-      onChange: (value) => {
-        mc.updateValues({[tool.name]: value})
+      onChange: (value, final) => {
+        const newState = {[tool.name]: value}
+        if(final) {
+          mc.state.commit(newState)
+        } else {
+          mc.state.update(newState)
+        }
       }
     });
+    kek[tool.name] = range.setValue;
     tab.append(range.container);
   })
 }

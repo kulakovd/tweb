@@ -17,12 +17,12 @@ export function buttonsSelector(buttons: HTMLElement, onClick?: (id: number, el:
     }
   });
 
-  return (id: number | HTMLElement | undefined) => {
+  return (id: number | HTMLElement | undefined, ignore?: boolean) => {
     clearSelection();
     if(id === undefined) return;
     const newSelected = id instanceof HTMLElement ? id : buttons.children[id];
     newSelected.classList.add('selected');
-    if(onClick) {
+    if(onClick && !ignore) {
       onClick(id instanceof HTMLElement ? Array.from(buttons.children).indexOf(id) : id, newSelected as HTMLElement);
     }
   }
