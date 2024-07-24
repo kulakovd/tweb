@@ -1,6 +1,11 @@
 .angle-gauge {
   width: 600px;
   height: 42px;
+  pointer-events: none;
+
+  &.visible {
+    pointer-events: auto;
+  }
 
   &-gauge {
     height: 100%;

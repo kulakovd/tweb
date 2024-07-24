@@ -1,3 +1,11 @@
+export type MediaEditorPath = {
+  type: 'path'
+  tool: 'pen'
+  color: string
+  size: number
+  points: Array<{x: number, y: number}>
+}
+
 // TODO split filters and other values
 export type MediaEditorValues = {
   enhance: number
@@ -22,7 +30,8 @@ export type MediaEditorValues = {
     height: number
     aspectRatio: number
     aspectRatioIndex: number
-  }
+  },
+  draw: Array<MediaEditorPath>
 }
 
 export const defaultMediaEncoderValues: MediaEditorValues = {
@@ -40,5 +49,6 @@ export const defaultMediaEncoderValues: MediaEditorValues = {
   rotation: 0,
   transformRotation: 0,
   flip: false,
-  crop: null
+  crop: null,
+  draw: []
 }

@@ -187,28 +187,22 @@ export class Cropper {
   }
 
   public update({
-    x, y, width, height, scale, isRestored
+    rect, scale, isRestored
   }: {
-    x: number,
-    y: number,
-    width: number,
-    height: number,
+    rect: Rect,
     scale: number,
     isRestored: boolean
   }) {
     this.transformRotation = this.state.current.transformRotation;
     this.scale = scale;
     const rotation = this.imageRect.rotation;
-    this.imageRect = Rect.from2Points(
-      {x, y},
-      {x: x + width, y: y + height}
-    );
+    this.imageRect = rect.clone();
     this.imageRect.rotation = rotation;
 
     if(!this.hasChanged) {
       this.cropRect = this.cropRect.clone();
-      this.cropRect.topLeft = {x, y};
-      this.cropRect.bottomRight = {x: x + width, y: y + height};
+      this.cropRect.topLeft = rect.topLeft;
+      this.cropRect.bottomRight = rect.bottomRight;
     }
 
     this.setCoords(this.resizeToFil(this.cropRect));

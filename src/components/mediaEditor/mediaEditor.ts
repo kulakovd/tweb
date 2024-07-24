@@ -107,6 +107,12 @@ export class MediaEditor {
         angleGauge.container.classList.remove('visible')
         cropper.container.classList.remove('visible')
       }
+
+      if(tabIdx === 3) {
+        this.renderer.setDrawMode(true);
+      } else {
+        this.renderer.setDrawMode(false);
+      }
     });
 
     this.selectTab(0, false);
@@ -219,6 +225,6 @@ export class MediaEditor {
 
 setTimeout(() => {
   const image = new Image();
-  image.src = '/assets/img/kandinsky.jpg';
+  image.src = '/assets/img/maserati.jpg';
   new MediaEditor().open(image);
 }, 1000)

@@ -5,11 +5,13 @@
   transition: opacity 200ms, transform 200ms;
   opacity: 0;
   transform: scale(1.1);
+  pointer-events: none;
 
   &.visible {
     transition-delay: 500ms;
     opacity: 1;
     transform: scale(1);
+    pointer-events: auto;
   }
 
   &-handle {

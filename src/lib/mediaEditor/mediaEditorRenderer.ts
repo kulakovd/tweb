@@ -1,13 +1,35 @@
 import {defaultMediaEncoderValues, MediaEditorValues} from './mediaEditorValues'
-import {Rect} from './geometry'
+import {Point, Rect} from './geometry'
 import {MediaEditorState} from './mediaEditorState'
+import attachGrabListeners from '../../helpers/dom/attachGrabListeners'
 
 type WorkerEventData = {
   type: 'frameReady'
   bitmap: ImageBitmap
 }
 
-type RectAndScale = {x: number, y: number, width: number, height: number, scale: number, isRestored: boolean}
+type RectAndScale = {rect: Rect, scale: number}
+type OnResizeEvent = RectAndScale & {isRestored: boolean}
+
+class Lazy {
+  private _value: any
+  private getter: () => any
+
+  constructor(getter: () => any) {
+    this.getter = getter
+  }
+
+  get value() {
+    if(this._value === undefined) {
+      this._value = this.getter()
+    }
+    return this._value
+  }
+
+  invalidate() {
+    this._value = undefined
+  }
+}
 
 class AnimationTimer {
   duration: number
@@ -47,7 +69,7 @@ class AnimationTimer {
 const paddingInCropMode = 300
 
 export class MediaEditorRenderer {
-  public onResize: (image: RectAndScale) => void
+  public onResize: (image: OnResizeEvent) => void
 
   private worker: Worker
   private mainCanvas: HTMLCanvasElement
@@ -67,6 +89,36 @@ export class MediaEditorRenderer {
   private flipTimer = new AnimationTimer(500)
 
   private cropMode = false
+  private drawMode = false
+  private unregisterDrawListeners: () => void
+
+  /** User draws on cropped image but points must be in original image coordinates */
+  private screenPointToImagePoint = new Lazy(() => {
+    // Use 0 as padding, because drawing is not available in crop move
+    const padding = 0
+
+    const {crop, transformRotation, rotation} = this.values
+    const cropScale = Math.min((this.width - padding) / crop.width, (this.height - padding) / crop.height)
+    const totalRotation = (rotation + transformRotation) % 360
+
+    const imageRect = Rect.from2Points({x: 0, y: 0}, {x: this.img.width, y: this.img.height})
+    imageRect.rotation = totalRotation
+    const bounds = imageRect.boundingBox
+    bounds.rotation = totalRotation
+
+    const cropW = crop.width * cropScale
+    const cropH = crop.height * cropScale
+
+    const cropX = (this.width - cropW) / 2
+    const cropY = (this.height - cropH) / 2
+
+    return (point: Point) => {
+      return bounds.unrotatePoint({
+        x: (point.x - cropX) / cropScale + crop.x,
+        y: (point.y - cropY) / cropScale + crop.y
+      })
+    }
+  })
 
   private dispatchResize = (isRestored: boolean = false) => {
     if(this.waitingForImage || this.waitingForSize) {
@@ -75,15 +127,12 @@ export class MediaEditorRenderer {
 
     const kek = this.getImageRectAndScale()
 
-    let rect = Rect.from2Points({x: kek.x, y: kek.y}, {x: kek.x + kek.width, y: kek.y + kek.height})
+    let rect = kek.rect
     rect.rotation = this.values.transformRotation
     rect = rect.boundingBox
 
     this.onResize?.({
-      x: rect.topLeft.x,
-      y: rect.topLeft.y,
-      width: rect.width,
-      height: rect.height,
+      rect,
       scale: kek.scale,
       isRestored
     })
@@ -112,6 +161,9 @@ export class MediaEditorRenderer {
 
     state.addEventListener('changed', (values, fields, isRestored) => {
       this.values = values
+      if(fields.includes('crop') || fields.includes('rotation') || fields.includes('transformRotation')) {
+        this.screenPointToImagePoint.invalidate()
+      }
       if(fields.includes('transformRotation')) {
         this.dispatchResize(isRestored)
       }
@@ -133,6 +185,7 @@ export class MediaEditorRenderer {
     this.width = width
     this.height = height
 
+    this.screenPointToImagePoint.invalidate()
     this.requestFrame()
     this.dispatchResize()
   }
@@ -149,6 +202,39 @@ export class MediaEditorRenderer {
     this.cropMode = cropMode
     this.switchModeTimer.start()
     this.requestFrame()
+  }
+
+  setDrawMode(drawMode: boolean) {
+    if(this.drawMode === drawMode) {
+      return
+    }
+
+    this.drawMode = drawMode
+    if(drawMode) {
+      this.registerDrawListeners()
+    } else {
+      this.unregisterDrawListeners()
+    }
+  }
+
+  private registerDrawListeners() {
+    this.unregisterDrawListeners = attachGrabListeners(
+      this.mainCanvas,
+      ({x, y}) => {
+        this.state.startPath({
+          tool: 'pen',
+          color: '#c0392b',
+          size: 5,
+          point: this.screenPointToImagePoint.value({x, y})
+        })
+      },
+      ({x, y}) => {
+        this.state.updatePath(this.screenPointToImagePoint.value({x, y}))
+      },
+      () => {
+        this.state.commitDraw()
+      }
+    )
   }
 
   private requestFrame() {
@@ -193,13 +279,11 @@ export class MediaEditorRenderer {
     const imageX = (width - imageW) / 2
     const imageY = (height - imageH) / 2
 
+    const rect = Rect.from2Points({x: imageX, y: imageY}, {x: imageX + imageW, y: imageY + imageH})
+
     return {
-      x: imageX,
-      y: imageY,
-      width: imageW,
-      height: imageH,
-      scale: imageScale,
-      isRestored: false
+      rect,
+      scale: imageScale
     }
   }
 
@@ -217,21 +301,17 @@ export class MediaEditorRenderer {
 
       const elapsed = this.cropMode ? 1 - this.switchModeTimer.elapsed : this.switchModeTimer.elapsed
 
-      const rotatedImage = this.getRotatedImage()
+      const renderedImage = this.getRenderedImage()
       const crop = this.values.crop
       const padding = (1 - elapsed) * paddingInCropMode
 
       const cropScale = Math.min((this.width - padding) / crop.width, (this.height - padding) / crop.height)
 
       const {
-        x: imageX,
-        y: imageY,
-        width: imageW,
-        height: imageH,
+        rect: imageRect,
         scale: imageScale
       } = this.getImageRectAndScale(padding)
 
-      const imageRect = Rect.from2Points({x: 0, y: 0}, {x: imageW, y: imageH})
       imageRect.rotation = totalRotation
       const bounds = imageRect.boundingBox
 
@@ -254,37 +334,36 @@ export class MediaEditorRenderer {
       const currentW = startW + (endW - startW) * elapsed
       const currentH = startH + (endH - startH) * elapsed
 
-      const flipElapsed = this.flipTimer.running ?
-        (this.values.flip ? this.flipTimer.elapsed : 1 - this.flipTimer.elapsed) :
-        (this.values.flip ? 1 : 0)
-
-      const flipTransform = {
-        a: (1 - flipElapsed) * 2 - 1, // 1 to -1
-        b: (flipElapsed > 0.5 ? Math.abs(flipElapsed - 1) : flipElapsed) * 0.4 // 0 -> 0.2 -> 0
+      const translate = {
+        x: this.width / 2,
+        y: this.height / 2
       }
 
       if(this.cropMode) {
-        const translate = {
-          x: this.width / 2,
-          y: this.height / 2
-        }
-
-        ctx.save()
         ctx.globalAlpha = 1 - elapsed
-        ctx.translate(translate.x, translate.y)
-        ctx.rotate(totalRotation * Math.PI / 180)
-        ctx.transform(flipTransform.a, flipTransform.b, 0, 1, 0, 0)
-        ctx.drawImage(this.lastBitmap, imageX - translate.x, imageY - translate.y, imageW, imageH)
-        ctx.restore()
+        ctx.drawImage(
+          renderedImage.canvas,
+          bounds.topLeft.x - renderedImage.shift.x * imageScale,
+          bounds.topLeft.y - renderedImage.shift.y * imageScale,
+          renderedImage.canvas.width * imageScale,
+          renderedImage.canvas.height * imageScale
+        )
+        ctx.globalAlpha = 1
       }
 
       if(!this.cropMode || (this.cropMode && this.switchModeTimer.running)) {
         ctx.drawImage(
-          rotatedImage,
-          crop.x, crop.y, crop.width, crop.height,
+          renderedImage.canvas,
+          crop.x + renderedImage.shift.x,
+          crop.y + renderedImage.shift.y,
+          crop.width,
+          crop.height,
           currentX, currentY, currentW, currentH
         )
       }
+
+      ctx.translate(translate.x, translate.y)
+      ctx.rotate(totalRotation * Math.PI / 180)
 
       if(this.switchModeTimer.running || this.flipTimer.running) {
         this.renderFrame()
@@ -292,9 +371,14 @@ export class MediaEditorRenderer {
     })
   }
 
-  private getRotatedImage(): HTMLCanvasElement {
+  private getRenderedImage(): {
+    canvas: HTMLCanvasElement,
+    shift: {x: number, y: number}
+    } {
     const sw = this.img.width
     const sh = this.img.height
+
+    const maxSkew = 0.2
 
     const {rotation, transformRotation} = this.values
     const totalRotation = (rotation + transformRotation) % 360
@@ -305,19 +389,62 @@ export class MediaEditorRenderer {
 
     const canvas = document.createElement('canvas')
     canvas.width = bounds.width
-    canvas.height = bounds.height
+    canvas.height = bounds.height + maxSkew * bounds.height // for flip animation
+
+    const translate = {
+      x: bounds.width / 2,
+      y: (bounds.height + maxSkew * bounds.height) / 2
+    }
+
+    const flipElapsed = this.flipTimer.running ?
+      (this.values.flip ? this.flipTimer.elapsed : 1 - this.flipTimer.elapsed) :
+      (this.values.flip ? 1 : 0)
+
+    const flipTransform = {
+      // a is scale, b is skew
+      a: (1 - flipElapsed) * 2 - 1, // 1 to -1
+      b: (flipElapsed > 0.5 ? Math.abs(flipElapsed - 1) : flipElapsed) * 0.4 // 0 -> 0.2 -> 0
+    }
 
     const ctx = canvas.getContext('2d')
     ctx.save()
-    ctx.translate(bounds.width / 2, bounds.height / 2)
+    ctx.translate(translate.x, translate.y)
     ctx.rotate(totalRotation * Math.PI / 180)
-    if(this.values.flip) {
-      ctx.transform(-1, 0, 0, 1, 0, 0)
-    }
+    ctx.transform(flipTransform.a, flipTransform.b, 0, 1, 0, 0)
 
     ctx.drawImage(this.lastBitmap, -sw / 2, -sh / 2)
+
+    ctx.beginPath()
+    ctx.rect(-sw / 2, -sh / 2, sw, sh)
+    ctx.clip()
+
+    this.state.current.draw.forEach((draw) => {
+      if(draw.type === 'path') {
+        ctx.strokeStyle = draw.color
+        ctx.lineWidth = draw.size
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+        ctx.beginPath()
+        draw.points.forEach((point, index) => {
+          const x = point.x - sw / 2
+          const y = point.y - sh / 2
+          if(index === 0) {
+            ctx.moveTo(x, y)
+          } else {
+            ctx.lineTo(x, y)
+          }
+        })
+        ctx.stroke()
+      }
+    })
     ctx.restore()
 
-    return canvas
+    return {
+      canvas,
+      shift: {
+        x: 0,
+        y: (maxSkew * bounds.height) / 2
+      }
+    }
   }
 }

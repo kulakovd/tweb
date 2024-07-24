@@ -1,5 +1,6 @@
-import {defaultMediaEncoderValues, MediaEditorValues} from './mediaEditorValues'
+import {defaultMediaEncoderValues, MediaEditorPath, MediaEditorValues} from './mediaEditorValues'
 import EventListenerBase from '../../helpers/eventListenerBase'
+import {Point} from './geometry'
 
 interface MediaEditorCommand {
   execute(): void
@@ -16,6 +17,40 @@ export class MediaEditorState extends EventListenerBase<{
 
   get current() {
     return this._current
+  }
+
+  private _lastDrawIndex = 0
+  startPath(path: {
+    tool: MediaEditorPath['tool']
+    color: MediaEditorPath['color']
+    size: MediaEditorPath['size']
+    point: Point
+  }) {
+    const points = [{x: path.point.x, y: path.point.y}]
+    this._lastDrawIndex = this._current.draw.length
+    const newPath: MediaEditorPath = {
+      type: 'path',
+      tool: path.tool,
+      color: path.color,
+      size: path.size,
+      points
+    }
+    this.update({
+      draw: [...this._current.draw, newPath]
+    })
+  }
+
+  updatePath(point: Point) {
+    const draw = this._current.draw
+    const lastPath = draw[this._lastDrawIndex]
+    if(lastPath) {
+      lastPath.points.push({x: point.x, y: point.y})
+      this.update({draw})
+    }
+  }
+
+  commitDraw() {
+    this.commit({draw: this._current.draw})
   }
 
   commitFlip() {

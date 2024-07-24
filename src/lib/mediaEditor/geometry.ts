@@ -72,19 +72,19 @@ export class Rect {
   }
 
   get topLeft(): Point {
-    return this.rotatePoint(this._topLeft);
+    return this._rotatePoint(this._topLeft);
   }
 
   get topRight(): Point {
-    return this.rotatePoint({x: this._bottomRight.x, y: this._topLeft.y});
+    return this._rotatePoint({x: this._bottomRight.x, y: this._topLeft.y});
   }
 
   get bottomLeft(): Point {
-    return this.rotatePoint({x: this._topLeft.x, y: this._bottomRight.y});
+    return this._rotatePoint({x: this._topLeft.x, y: this._bottomRight.y});
   }
 
   get bottomRight(): Point {
-    return this.rotatePoint(this._bottomRight);
+    return this._rotatePoint(this._bottomRight);
   }
 
   set topLeft(value: Point) {
@@ -268,7 +268,7 @@ export class Rect {
     };
   }
 
-  private rotatePoint(point: Point, rot: number = this._rotation): Point {
+  private _rotatePoint(point: Point, rot: number = this._rotation): Point {
     const rad = rot * (Math.PI / 180);
     const center = this.center;
 
@@ -287,8 +287,26 @@ export class Rect {
     };
   }
 
-  private unrotatePoint(point: Point): Point {
-    return this.rotatePoint(point, -this._rotation);
+  /**
+   *
+   * @param point - point in coordinate system of the rectangle
+   */
+  public rotatePoint(point: Point): Point {
+    return this._rotatePoint({
+      x: point.x + this._topLeft.x,
+      y: point.y + this._topLeft.y
+    });
+  }
+
+  /**
+   *
+   * @param point - point in coordinate system of the rectangle
+   */
+  public unrotatePoint(point: Point): Point {
+    return this._rotatePoint({
+      x: point.x + this._topLeft.x,
+      y: point.y + this._topLeft.y
+    }, -this._rotation);
   }
 
   public isInside(point: Point): boolean {
