@@ -30,7 +30,7 @@ export function createEnhancePass(ctx: MediaEditorRenderingContext): (input: Tex
         height: input.height
       },
       lutTexture: lookupTexture,
-      intensity: values.enhance / 100
+      intensity: values.filters.enhance / 100
     })
 
     return {

@@ -3,12 +3,17 @@ import EventListenerBase from '../../helpers/eventListenerBase'
 import {Point} from './geometry'
 
 interface MediaEditorCommand {
-  execute(): void
+  execute(first: boolean): void
   undo(): void
+}
+
+export type MediaEditorStateUpdate = Omit<Partial<MediaEditorValues>, 'filters'> & {
+  filters?: Partial<MediaEditorValues['filters']>
 }
 
 export class MediaEditorState extends EventListenerBase<{
   changed: (values: MediaEditorValues, fields: Array<keyof MediaEditorValues>, isRestored: boolean) => void
+  restored: (values: MediaEditorValues, fields: Array<keyof MediaEditorValues>) => void
 }> {
   private _lastCommit: MediaEditorValues = structuredClone(defaultMediaEncoderValues)
   private _current: MediaEditorValues = structuredClone(defaultMediaEncoderValues)
@@ -66,13 +71,50 @@ export class MediaEditorState extends EventListenerBase<{
     this.update({crop})
   }
 
-  update(update: Partial<MediaEditorValues>, isRestored: boolean = false) {
-    const fields = (Object.keys(update) as Array<keyof MediaEditorValues>).filter(key => this._current[key] !== update[key])
-    Object.assign(this._current, update)
-    this.dispatchEvent('changed', this._current, fields, isRestored)
+  private _updateFilter(name: keyof MediaEditorValues['filters'], value: number, isRestored: boolean) {
+    if(this._current.filters[name] === value) {
+      return
+    }
+    this._current.filters[name] = value
+    this.dispatchEvent('changed', this._current, ['filters'], isRestored)
+    if(isRestored) {
+      this.dispatchEvent('restored', this._current, ['filters'])
+    }
   }
 
-  commit(update: Partial<MediaEditorValues>) {
+  updateFilter(name: keyof MediaEditorValues['filters'], value: number) {
+    this._updateFilter(name, value, false)
+  }
+
+  commitFilter(name: keyof MediaEditorValues['filters'], value: number) {
+    const oldValue = this._lastCommit.filters[name]
+    if(oldValue === value) {
+      return
+    }
+    const command: MediaEditorCommand = {
+      execute: (first) => {
+        this._lastCommit.filters[name] = value
+        this._updateFilter(name, value, !first)
+      },
+      undo: () => {
+        this._lastCommit.filters[name] = oldValue
+        this._updateFilter(name, oldValue, true)
+      }
+    }
+    this._commitCommand(command)
+  }
+
+  update(update: MediaEditorStateUpdate, isRestored: boolean = false) {
+    const fields = (Object.keys(update) as Array<keyof MediaEditorValues>).filter(key => this._current[key] !== update[key])
+    const {filters, ...rest} = update
+    Object.assign(this._current, rest)
+    this.dispatchEvent('changed', this._current, fields, isRestored)
+    if(isRestored) {
+      this.dispatchEvent('restored', this._current, fields)
+    }
+  }
+
+  commit(update: MediaEditorStateUpdate) {
     const lastCommit = this._lastCommit
     const revertUpdate: Partial<MediaEditorValues> = {}
     for(const key in update) {
@@ -81,9 +123,9 @@ export class MediaEditorState extends EventListenerBase<{
     }
 
     const command: MediaEditorCommand = {
-      execute: () => {
+      execute: (first) => {
         Object.assign(this._lastCommit, update)
-        this.update(update, true)
+        this.update(update, !first)
       },
       undo: () => {
         Object.assign(this._lastCommit, revertUpdate)
@@ -91,9 +133,7 @@ export class MediaEditorState extends EventListenerBase<{
       }
     }
 
-    this.undoStack.push(command)
-    this.redoStack.length = 0
-    command.execute()
+    this._commitCommand(command)
   }
 
   undo() {
@@ -107,12 +147,18 @@ export class MediaEditorState extends EventListenerBase<{
   redo() {
     const command = this.redoStack.pop()
     if(command) {
-      command.execute()
+      command.execute(false)
       this.undoStack.push(command)
     }
   }
 
   private get lastCommand() {
     return this.undoStack[this.undoStack.length - 1]
+  }
+
+  private _commitCommand(command: MediaEditorCommand) {
+    this.undoStack.push(command)
+    this.redoStack.length = 0
+    command.execute(true)
   }
 }

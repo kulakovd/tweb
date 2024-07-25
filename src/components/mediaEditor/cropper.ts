@@ -167,7 +167,7 @@ export class Cropper {
       this.state.commitFlip();
     }
 
-    state.addEventListener('changed', (values, fields) => {
+    state.addEventListener('restored', (values, fields) => {
       if(fields.includes('crop') || fields.includes('rotation')) {
         angleGauge.setValue(values.rotation);
         this.imageRect.rotation = values.rotation;

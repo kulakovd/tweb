@@ -92,6 +92,8 @@ export class MediaEditorRenderer {
   private drawMode = false
   private unregisterDrawListeners: () => void
 
+  private filtersInvalidated = true
+
   /** User draws on cropped image but points must be in original image coordinates */
   private screenPointToImagePoint = new Lazy(() => {
     // Use 0 as padding, because drawing is not available in crop move
@@ -170,6 +172,9 @@ export class MediaEditorRenderer {
       if(fields.includes('flip')) {
         this.flipTimer.start()
       }
+      if(fields.includes('filters')) {
+        this.filtersInvalidated = true
+      }
       this.requestFrame()
     })
   }
@@ -243,11 +248,15 @@ export class MediaEditorRenderer {
       return
     }
 
-    this.waitingForFrame = true
+    if(this.filtersInvalidated) {
+      this.waitingForFrame = true
 
-    createImageBitmap(this.img).then((bitmap) => {
-      this.worker.postMessage({type: 'requestFrame', bitmap, values: this.values}, [bitmap])
-    })
+      createImageBitmap(this.img).then((bitmap) => {
+        this.worker.postMessage({type: 'requestFrame', bitmap, values: this.values}, [bitmap])
+      })
+    } else {
+      this.renderFrame()
+    }
   }
 
   private lastBitmap?: ImageBitmap
@@ -262,6 +271,8 @@ export class MediaEditorRenderer {
     if(this.needsUpdate) {
       this.needsUpdate = false
       this.requestFrame()
+    } else {
+      this.filtersInvalidated = false
     }
   }
 

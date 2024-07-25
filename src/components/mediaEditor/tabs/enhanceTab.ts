@@ -5,7 +5,7 @@ import {LangPackKey} from '../../../lib/langPack'
 
 const enhanceTools: Array<{
   label: LangPackKey,
-  name: keyof MediaEditorValues,
+  name: keyof MediaEditorValues['filters'],
   scale: 'absolute' | 'symmetrical'
 }> = [
   {
@@ -66,27 +66,28 @@ const enhanceTools: Array<{
 ]
 
 export function enhanceTab(tab: HTMLDivElement, mc: MediaEditor) {
-  const kek: Partial<Record<keyof MediaEditorValues, (value: number) => void>> = {}
-  mc.state.addEventListener('changed', (values, fields) => {
-    fields.forEach(field => {
-      kek[field]?.(values[field] as number)
-    })
+  const kek: Partial<Record<keyof MediaEditorValues['filters'], (value: number) => void>> = {}
+  mc.state.addEventListener('restored', (values, fields) => {
+    if(fields.includes('filters')) {
+      enhanceTools.forEach(tool => {
+        kek[tool.name](values.filters[tool.name])
+      })
+    }
   })
 
   enhanceTools.forEach(tool => {
     const range = rangeSlider({
       min: tool.scale === 'absolute' ? 0 : -100,
       max: 100,
-      value: defaultMediaEncoderValues[tool.name] as number,
+      value: defaultMediaEncoderValues.filters[tool.name],
       label: tool.label,
       highlight: true,
       color: 'var(--primary-color)',
       onChange: (value, final) => {
-        const newState = {[tool.name]: value}
         if(final) {
-          mc.state.commit(newState)
+          mc.state.commitFilter(tool.name, value)
         } else {
-          mc.state.update(newState)
+          mc.state.updateFilter(tool.name, value)
         }
       }
     });

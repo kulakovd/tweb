@@ -119,7 +119,7 @@ export function cropTab(tab: HTMLDivElement, me: MediaEditor) {
   });
   select(0);
 
-  me.state.addEventListener('changed', (values, fields) => {
+  me.state.addEventListener('restored', (values, fields) => {
     if(fields.includes('crop')) {
       if(values.crop) {
         select(values.crop.aspectRatioIndex, true);

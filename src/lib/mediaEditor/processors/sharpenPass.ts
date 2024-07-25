@@ -9,7 +9,7 @@ export function createSharpenPass(ctx: MediaEditorRenderingContext): (input: Tex
   return (input: Texture, values) => {
     const output = sharpenProgram({
       input,
-      sharpen: 0.11 + values.sharpen / 100 * 0.6
+      sharpen: 0.11 + values.filters.sharpen / 100 * 0.6
     })
 
     return {
