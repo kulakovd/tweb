@@ -287,6 +287,10 @@ export class Rect {
     };
   }
 
+  private _unrotatePoint(point: Point): Point {
+    return this._rotatePoint(point, -this._rotation);
+  }
+
   /**
    *
    * @param point - point in coordinate system of the rectangle
@@ -303,20 +307,20 @@ export class Rect {
    * @param point - point in coordinate system of the rectangle
    */
   public unrotatePoint(point: Point): Point {
-    return this._rotatePoint({
+    return this._unrotatePoint({
       x: point.x + this._topLeft.x,
       y: point.y + this._topLeft.y
-    }, -this._rotation);
+    });
   }
 
   public isInside(point: Point): boolean {
-    const rotatedPoint = this.unrotatePoint(point);
+    const rotatedPoint = this._unrotatePoint(point);
     return rotatedPoint.x >= this._topLeft.x && rotatedPoint.x <= this._bottomRight.x &&
       rotatedPoint.y >= this._topLeft.y && rotatedPoint.y <= this._bottomRight.y;
   }
 
   public isInsideOfSegment(point: Point, segment: 'left' | 'top' | 'right' | 'bottom'): boolean {
-    const rotatedPoint = this.unrotatePoint(point);
+    const rotatedPoint = this._unrotatePoint(point);
     if(segment === 'left') {
       return rotatedPoint.x >= this._topLeft.x
     }
