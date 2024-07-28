@@ -1,4 +1,4 @@
-export function createImageTexture(gl, img) {
+export function createImageTexture(gl: WebGL2RenderingContext, img: TexImageSource) {
   const currentTexture = gl.getParameter(gl.TEXTURE_BINDING_2D);
   const texture = gl.createTexture()
   gl.bindTexture(gl.TEXTURE_2D, texture)

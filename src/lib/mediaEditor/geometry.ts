@@ -261,7 +261,7 @@ export class Rect {
     return this._rotation;
   }
 
-  private get center(): Point {
+  get center(): Point {
     return {
       x: (this._topLeft.x + this._bottomRight.x) / 2,
       y: (this._topLeft.y + this._bottomRight.y) / 2

@@ -1,4 +1,3 @@
-// --isolated-modules
 import {MediaEditorValues} from './mediaEditorValues'
 import {createImageTexture} from './webgl/utils/imageTexture'
 import {Texture} from './webgl/webgl'
@@ -10,6 +9,7 @@ import {createEnhancePass} from './processors/enhancePass'
 import {createAdjustmentsPass} from './processors/adjustmentsPass'
 import {createSharpenPass} from './processors/sharpenPass'
 
+// --isolated-modules
 export {}
 
 type EvtData = {

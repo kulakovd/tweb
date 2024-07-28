@@ -1,8 +1,15 @@
+export type MediaEditorDrawState = {
+  tool: 'pen' | 'arrow' | 'brush' | 'neon' | 'eraser' | 'blur'
+  color?: string
+  size: number
+}
+
 export type MediaEditorPath = {
   type: 'path'
-  tool: 'pen'
+  tool: MediaEditorDrawState['tool']
   color: string
   size: number
+  completed: boolean
   points: Array<{x: number, y: number}>
 }
 

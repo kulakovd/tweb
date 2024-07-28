@@ -246,6 +246,10 @@ export default class ColorPicker {
   }
 
   private hueHandler(pageX: number, update = true) {
+    if(this.hueRect.width === 0) {
+      return;
+    }
+
     const eventX = clamp(pageX - this.hueRect.left, 0, this.hueRect.width);
 
     const percents = eventX / this.hueRect.width;
@@ -266,6 +270,10 @@ export default class ColorPicker {
   private saturationHandler(pageX: number, pageY: number, update = true) {
     const maxX = this.boxRect.width;
     const maxY = this.boxRect.height;
+
+    if(maxX === 0 || maxY === 0) {
+      return
+    }
 
     const eventX = clamp(pageX - this.boxRect.left, 0, maxX);
     const eventY = clamp(pageY - this.boxRect.top, 0, maxY);

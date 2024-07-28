@@ -10,6 +10,8 @@ import toolEraserImage from '../assets/tool_eraser.svg';
 import toolBlurImage from '../assets/tool_blur.svg';
 import {_i18n, i18n, LangPackKey} from '../../../lib/langPack'
 import {buttonsSelector} from '../buttonsSelector'
+import {MediaEditor} from '../mediaEditor'
+import {MediaEditorDrawState} from '../../../lib/mediaEditor/mediaEditorValues'
 
 type ToolDefinition = {
   icon: string;
@@ -27,8 +29,8 @@ const tools: Array<ToolDefinition> = [
   {icon: toolBlurImage, value: 'blur', i18key: 'MediaEditor.Draw.Tool.Blur'}
 ]
 
-export function drawTab(tab: HTMLElement) {
-  let currentTools = 'pen'
+export function drawTab(tab: HTMLElement, me: MediaEditor) {
+  let currentTools: MediaEditorDrawState['tool'] = 'pen'
   const toolsColors: Record<string, string> = {
     pen: '#FE4438',
     arrow: '#FFD60A',
@@ -37,11 +39,15 @@ export function drawTab(tab: HTMLElement) {
   }
 
   const sizeRange = rangeSlider({
-    min: 2,
-    max: 48,
-    value: 24,
-    label: 'MediaEditor.Text.Size',
-    onChange: () => {}
+    min: 5,
+    max: 25,
+    value: 15,
+    label: 'MediaEditor.Draw.Size',
+    onChange: (value) => {
+      me.state.updateDrawState({
+        size: value
+      })
+    }
   });
 
   const toolSelector = document.createElement('div');
@@ -56,11 +62,15 @@ export function drawTab(tab: HTMLElement) {
   }
 
   const selectTool = buttonsSelector(toolSelectorBtns, (idx) => {
-    currentTools = tools[idx].value;
+    currentTools = tools[idx].value as MediaEditorDrawState['tool'];
     if(toolsColors[currentTools]) {
       colors.selectColor(toolsColors[currentTools]);
       sizeRange.updateColor(toolsColors[currentTools]);
     }
+    me.state.updateDrawState({
+      tool: currentTools,
+      color: toolsColors[currentTools]
+    })
   })
 
   const toolSelectorLabel = document.createElement('div');
@@ -74,6 +84,9 @@ export function drawTab(tab: HTMLElement) {
       const idx = tools.findIndex(tool => tool.value === currentTools);
       const toolEl = toolSelectorBtns.children[idx] as HTMLElement
       toolEl.style.setProperty('--selected-color', color);
+      me.state.updateDrawState({
+        color
+      })
     }
   })
 

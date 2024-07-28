@@ -1,4 +1,9 @@
-import {defaultMediaEncoderValues, MediaEditorPath, MediaEditorValues} from './mediaEditorValues'
+import {
+  defaultMediaEncoderValues,
+  MediaEditorDrawState,
+  MediaEditorPath,
+  MediaEditorValues
+} from './mediaEditorValues'
 import EventListenerBase from '../../helpers/eventListenerBase'
 import {Point} from './geometry'
 
@@ -17,8 +22,23 @@ export class MediaEditorState extends EventListenerBase<{
 }> {
   private _lastCommit: MediaEditorValues = structuredClone(defaultMediaEncoderValues)
   private _current: MediaEditorValues = structuredClone(defaultMediaEncoderValues)
+
   private undoStack: MediaEditorCommand[] = []
   private redoStack: MediaEditorCommand[] = []
+
+  private _drawState: MediaEditorDrawState = {
+    tool: 'pen',
+    size: 15
+  }
+
+  get drawState() {
+    return this._drawState
+  }
+
+  updateDrawState(update: Partial<MediaEditorDrawState>) {
+    Object.assign(this._drawState, update)
+    console.log('[MediaEditorState] drawState updated', this._drawState)
+  }
 
   get current() {
     return this._current
@@ -27,7 +47,7 @@ export class MediaEditorState extends EventListenerBase<{
   private _lastDrawIndex = 0
   startPath(path: {
     tool: MediaEditorPath['tool']
-    color: MediaEditorPath['color']
+    color?: MediaEditorPath['color']
     size: MediaEditorPath['size']
     point: Point
   }) {
@@ -38,6 +58,7 @@ export class MediaEditorState extends EventListenerBase<{
       tool: path.tool,
       color: path.color,
       size: path.size,
+      completed: false,
       points
     }
     this.update({
@@ -49,13 +70,22 @@ export class MediaEditorState extends EventListenerBase<{
     const draw = this._current.draw
     const lastPath = draw[this._lastDrawIndex]
     if(lastPath) {
+      const lastPoint = lastPath.points[lastPath.points.length - 1]
+      if(lastPoint.x === point.x && lastPoint.y === point.y) {
+        return
+      }
       lastPath.points.push({x: point.x, y: point.y})
       this.update({draw})
     }
   }
 
   commitDraw() {
-    this.commit({draw: this._current.draw})
+    const draw = this._current.draw
+    const lastPath = draw[this._lastDrawIndex]
+    if(lastPath) {
+      lastPath.completed = true
+      this.commit({draw})
+    }
   }
 
   commitFlip() {
