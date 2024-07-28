@@ -53,6 +53,8 @@ export class MediaEditor {
 
   public readonly state = new MediaEditorState()
 
+  public onDone: (file: File) => void;
+
   constructor() {
     this.managers = rootScope.managers;
 
@@ -95,6 +97,11 @@ export class MediaEditor {
     const content = this.constructContent();
 
     const doneBtn = ButtonIcon('check btn-circle rp btn-corner z-depth-1 btn-menu-toggle animated-button-icon');
+    attachClickEvent(doneBtn, () => {
+      this.renderer.export().then((file) => {
+        this.onDone?.(file);
+      })
+    })
     this.sidebar.append(doneBtn);
 
     this.selectTab = horizontalMenu(tabs, content, (tabIdx) => {
@@ -125,6 +132,9 @@ export class MediaEditor {
     this.sidebar.append(navBar);
 
     const closeBtn = ButtonIcon('close');
+    attachClickEvent(closeBtn, () => {
+      this.close();
+    })
     navBar.append(closeBtn);
 
     const title = document.createElement('div');
@@ -189,6 +199,7 @@ export class MediaEditor {
   }
 
   private onKeydown(e: KeyboardEvent) {
+    if(e.repeat) return;
     const ctrl = e.ctrlKey || e.metaKey;
     if(ctrl && e.key === 'z') {
       if(e.shiftKey) {
@@ -223,8 +234,8 @@ export class MediaEditor {
   }
 }
 
-setTimeout(() => {
-  const image = new Image();
-  image.src = '/assets/img/maserati.jpg';
-  new MediaEditor().open(image);
-}, 1000)
+// setTimeout(() => {
+//   const image = new Image();
+//   image.src = '/assets/img/maserati.jpg';
+//   new MediaEditor().open(image);
+// }, 1000)

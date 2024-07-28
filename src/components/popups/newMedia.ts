@@ -754,22 +754,31 @@ export default class PopupNewMedia extends PopupElement {
   private createMediaButtons(params: SendFileParams) {
     const itemFromEvt = (e: MouseEvent) => {
       const target = findUpClassName(e.target, 'popup-item');
-      const item = this.willAttach.sendFileDetails.find((i) => i.itemDiv === target);
-      return item;
+      const itemIndex = this.willAttach.sendFileDetails.findIndex((i) => i.itemDiv === target);
+      return {
+        itemIndex,
+        item: this.willAttach.sendFileDetails[itemIndex]
+      };
     }
 
     const buttons = ([
       {
         icon: 'enhance',
         onClick: (e: MouseEvent) => {
-          const item = itemFromEvt(e);
-          new MediaEditor().open(item.itemDiv.querySelector('img'));
+          const {item, itemIndex} = itemFromEvt(e);
+          const editor = new MediaEditor()
+          editor.onDone = (file: File) => {
+            this.files[itemIndex] = file;
+            this.attachFiles();
+            editor.close()
+          }
+          editor.open(item.itemDiv.querySelector('img'));
         }
       },
       {
         icon: 'mediaspoiler',
         onClick: async(e: MouseEvent) => {
-          const item = itemFromEvt(e);
+          const {item} = itemFromEvt(e);
           await this.applyMediaSpoiler(item)
           // update buttons
           params.buttonsItem.innerHTML = '';
@@ -780,7 +789,7 @@ export default class PopupNewMedia extends PopupElement {
       {
         icon: 'mediaspoileroff',
         onClick: (e: MouseEvent) => {
-          const item = itemFromEvt(e);
+          const {item} = itemFromEvt(e);
           this.removeMediaSpoiler(item)
           // update buttons
           params.buttonsItem.innerHTML = '';
@@ -791,18 +800,22 @@ export default class PopupNewMedia extends PopupElement {
       {
         icon: 'delete',
         onClick: () => {
-          // remove from DOM and from sendFileDetails
-          params.itemDiv.remove();
-          this.willAttach.sendFileDetails = this.willAttach.sendFileDetails.filter((i) => i !== params);
-          this.files = this.files.filter((f) => f !== params.file);
-          // TODO should I really call this to rearrange the images?
-          this.attachFiles();
+          if( this.willAttach.sendFileDetails.length === 1) {
+            this.destroy();
+          } else {
+            // remove from DOM and from sendFileDetails
+            params.itemDiv.remove();
+            this.willAttach.sendFileDetails = this.willAttach.sendFileDetails.filter((i) => i !== params);
+            this.files = this.files.filter((f) => f !== params.file);
+            this.attachFiles();
+          }
         }
       }
     ])
     .filter(b => b?.verify?.() ?? true)
     .map((button) => {
       const btn = ButtonIcon(button.icon)
+      btn.classList.add('eee')
       attachClickEvent(btn, button.onClick, {listenerSetter: this.listenerSetter})
       return btn
     })

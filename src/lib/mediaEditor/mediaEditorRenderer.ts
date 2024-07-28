@@ -194,6 +194,35 @@ export class MediaEditorRenderer {
     })
   }
 
+  public export(): Promise<File> {
+    const resultCanvas = document.createElement('canvas')
+    const crop = this.state.current.crop
+    resultCanvas.width = crop.width
+    resultCanvas.height = crop.height
+
+    const renderedImage = this.getRenderedImage()
+
+    const ctx = resultCanvas.getContext('2d')
+    ctx.drawImage(
+      renderedImage.canvas,
+      crop.x + renderedImage.shift.x,
+      crop.y + renderedImage.shift.y,
+      crop.width,
+      crop.height,
+      0, 0, crop.width, crop.height
+    )
+
+    return new Promise((resolve) => {
+      resultCanvas.toBlob((blob) => {
+        if(blob === null) {
+          throw new Error('Failed to export image')
+        }
+
+        resolve(new File([blob], 'image.png', {type: 'image/png'}))
+      })
+    })
+  }
+
   loadMedia(src: string) {
     this.waitingForImage = true
     this.img.src = src
