@@ -2,7 +2,7 @@ import {defaultMediaEncoderValues, MediaEditorPath, MediaEditorValues} from './m
 import {Point, Rect} from './geometry'
 import {MediaEditorState} from './mediaEditorState'
 import attachGrabListeners from '../../helpers/dom/attachGrabListeners'
-import {createBlurPainter} from './tools/blur'
+import {createBlurPainter} from './paint/blur'
 
 type WorkerEventData = {
   type: 'frameReady'
@@ -101,7 +101,7 @@ export class MediaEditorRenderer {
   private blurCanvas = document.createElement('canvas')
   private blurCtx = this.blurCanvas.getContext('2d')
 
-  private blurPainter = createBlurPainter(this.drawCtx, this.blurCanvas)
+  private paintBlur = createBlurPainter(this.drawCtx, this.blurCanvas)
 
   /** User draws on cropped image but points must be in original image coordinates */
   private screenPointToImagePoint = new Lazy(() => {
@@ -192,6 +192,24 @@ export class MediaEditorRenderer {
       }
       this.requestFrame()
     })
+
+    state.addEventListener('restored', (values, fields) => {
+      if(fields.includes('draw')) {
+        // redraw all paths
+        this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height)
+        for(const path of values.draw) {
+          this.painter.startPath(path, path.points[0])
+          if(path.tool === 'blur') {
+            this.paintBlur(path)
+            continue
+          }
+          for(let i = 1; i < path.points.length; i++) {
+            this.painter.updatePath(path, path.points[i])
+          }
+          this.painter.endPath(path)
+        }
+      }
+    })
   }
 
   public export(): Promise<File> {
@@ -266,32 +284,23 @@ export class MediaEditorRenderer {
     }
   }
 
-  private registerDrawListeners() {
+  private createPainter = () => {
+    const renderer = this
     let prevPoint: Point | null = null
-    this.unregisterDrawListeners = attachGrabListeners(
-      this.mainCanvas,
-      ({x, y}) => {
-        const point = this.screenPointToImagePoint.value({x, y})
-
-        this.state.startPath({
-          ...this.state.drawState,
-          point
-        })
-
-        const path = this.state.current.draw.at(-1)
-
-        if(this.state.drawState.tool === 'blur') {
-          const bctx = this.blurCtx
+    return {
+      startPath(path: MediaEditorPath, point: Point) {
+        if(path.tool === 'blur') {
+          const bctx = renderer.blurCtx
           bctx.filter = 'blur(4px)'
-          bctx.drawImage(this.lastBitmap, 0, 0)
-          bctx.drawImage(this.drawCanvas, 0, 0)
+          bctx.drawImage(renderer.lastBitmap, 0, 0)
+          bctx.drawImage(renderer.drawCanvas, 0, 0)
 
-          const ctx = this.drawCtx
+          const ctx = renderer.drawCtx
           ctx.globalCompositeOperation = 'source-over'
           ctx.shadowBlur = 0
           ctx.globalAlpha = 1
         } else {
-          const ctx = this.drawCtx
+          const ctx = renderer.drawCtx
           ctx.lineCap = 'round'
           ctx.lineJoin = 'round'
           ctx.strokeStyle = path.color
@@ -313,7 +322,7 @@ export class MediaEditorRenderer {
           }
 
           ctx.globalCompositeOperation = 'source-over'
-          if(this.state.drawState.tool === 'eraser') {
+          if(path.tool === 'eraser') {
             ctx.globalCompositeOperation = 'destination-out'
           }
 
@@ -322,14 +331,10 @@ export class MediaEditorRenderer {
         }
         prevPoint = point
       },
-      ({x, y}) => {
-        const point = this.screenPointToImagePoint.value({x, y})
-        this.state.updatePath(point)
-        const path = this.state.current.draw.at(-1)
-
-        const ctx = this.drawCtx
+      updatePath(path: MediaEditorPath, point: Point) {
+        const ctx = renderer.drawCtx
         if(path.tool === 'blur') {
-          this.blurPainter(path)
+          renderer.paintBlur(path)
         } else if(path.tool === 'brush') {
           const p1 = prevPoint
           const p2 = point
@@ -358,8 +363,69 @@ export class MediaEditorRenderer {
         }
         prevPoint = point
       },
+      endPath(path: MediaEditorPath) {
+        if(path.tool === 'arrow') {
+          const ctx = renderer.drawCtx
+          const p1 = path.points.at(-1)
+          const p2 = path.points.at(-2)
+
+          const angle = Math.atan2(p1.y - p2.y, p1.x - p2.x)
+          const arrowSize = path.size * 4
+
+          ctx.beginPath()
+          ctx.moveTo(p1.x, p1.y)
+          ctx.lineTo(p2.x, p2.y)
+          ctx.stroke()
+
+          ctx.beginPath()
+          ctx.moveTo(p2.x, p2.y)
+          ctx.lineTo(
+            p2.x - arrowSize * Math.cos(angle - Math.PI / 6),
+            p2.y - arrowSize * Math.sin(angle - Math.PI / 6)
+          )
+          ctx.stroke()
+
+          ctx.beginPath()
+          ctx.moveTo(p2.x, p2.y)
+          ctx.lineTo(
+            p2.x - arrowSize * Math.cos(angle + Math.PI / 6),
+            p2.y - arrowSize * Math.sin(angle + Math.PI / 6)
+          )
+          ctx.stroke()
+        }
+      }
+    }
+  }
+
+  private painter = this.createPainter()
+
+  private registerDrawListeners() {
+    const lastPath = () => {
+      return this.state.current.draw.at(-1)
+    }
+    this.unregisterDrawListeners = attachGrabListeners(
+      this.mainCanvas,
+      ({x, y}) => {
+        const point = this.screenPointToImagePoint.value({x, y})
+
+        this.state.startPath({
+          ...this.state.drawState,
+          point
+        })
+
+        const path = lastPath()
+        this.painter.startPath(path, point)
+      },
+      ({x, y}) => {
+        const point = this.screenPointToImagePoint.value({x, y})
+        this.state.updatePath(point)
+        const path = lastPath()
+        this.painter.updatePath(path, point)
+      },
       () => {
         this.state.commitDraw()
+        const path = lastPath()
+        this.painter.endPath(path)
       }
     )
   }
