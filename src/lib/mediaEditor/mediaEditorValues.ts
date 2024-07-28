@@ -4,6 +4,26 @@ export type MediaEditorDrawState = {
   size: number
 }
 
+export type MediaEditorTextState = {
+  color: string
+  fontSize: number
+  fontFamily: string
+  align: 'left' | 'center' | 'right'
+  frame: 'none' | 'black' | 'white'
+}
+
+export type MediaEditorText = {
+  type: 'text'
+  position: {x: number, y: number},
+  content: string
+  fontSize: number
+  fontFamily: string
+  color: string
+  align: 'left' | 'center' | 'right'
+  frame: 'none' | 'black' | 'white'
+  rotation: number
+}
+
 export type MediaEditorPath = {
   type: 'path'
   tool: MediaEditorDrawState['tool']
@@ -40,7 +60,9 @@ export type MediaEditorValues = {
     aspectRatio: number
     aspectRatioIndex: number
   },
-  draw: Array<MediaEditorPath>
+  selectedPainting: null | number
+  paintings: Array<MediaEditorPath>
+  stickers: Array<MediaEditorText>
 }
 
 export const defaultMediaEncoderValues: MediaEditorValues = {
@@ -61,5 +83,7 @@ export const defaultMediaEncoderValues: MediaEditorValues = {
   transformRotation: 0,
   flip: false,
   crop: null,
-  draw: []
+  selectedPainting: null,
+  paintings: [],
+  stickers: []
 }

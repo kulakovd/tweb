@@ -15,6 +15,7 @@ import {AngleGauge} from './angleGauge'
 import {Cropper} from './cropper'
 import {MediaEditorState} from '../../lib/mediaEditor/mediaEditorState'
 import {attachClickEvent} from '../../helpers/dom/clickEvent'
+import {StickersOverlay} from './stickersOverlay'
 
 const className = 'media-editor';
 
@@ -88,6 +89,9 @@ export class MediaEditor {
     canvasContainer.append(cropper.container);
     canvasContainer.append(angleGauge.container);
 
+    const stickersOverlay = new StickersOverlay(this.renderer, this.state);
+    canvasContainer.append(stickersOverlay.container);
+
     this.sidebar = document.createElement('div');
     this.sidebar.classList.add(`${className}-sidebar`);
     this.container.append(this.sidebar);
@@ -113,6 +117,12 @@ export class MediaEditor {
         this.renderer.setCropMode(false);
         angleGauge.container.classList.remove('visible')
         cropper.container.classList.remove('visible')
+      }
+
+      if(tabIdx === 2) {
+        stickersOverlay.setEnabled(true);
+      } else {
+        stickersOverlay.setEnabled(false);
       }
 
       if(tabIdx === 3) {
@@ -233,9 +243,3 @@ export class MediaEditor {
     }
   }
 }
-
-// setTimeout(() => {
-//   const image = new Image();
-//   image.src = '/assets/img/maserati.jpg';
-//   new MediaEditor().open(image);
-// }, 1000)

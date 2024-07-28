@@ -3,6 +3,7 @@ import {Point, Rect} from './geometry'
 import {MediaEditorState} from './mediaEditorState'
 import attachGrabListeners from '../../helpers/dom/attachGrabListeners'
 import {createBlurPainter} from './paint/blur'
+import {attachClickEvent} from '../../helpers/dom/clickEvent'
 
 type WorkerEventData = {
   type: 'frameReady'
@@ -12,11 +13,11 @@ type WorkerEventData = {
 type RectAndScale = {rect: Rect, scale: number}
 type OnResizeEvent = RectAndScale & {isRestored: boolean}
 
-class Lazy {
-  private _value: any
-  private getter: () => any
+class Lazy<T> {
+  private _value: T
+  private getter: () => T
 
-  constructor(getter: () => any) {
+  constructor(getter: () => T) {
     this.getter = getter
   }
 
@@ -90,8 +91,12 @@ export class MediaEditorRenderer {
   private flipTimer = new AnimationTimer(500)
 
   private cropMode = false
+
   private drawMode = false
   private unregisterDrawListeners: () => void
+
+  private textMode = false
+  private unregisterTextListeners: () => void
 
   private filtersInvalidated = true
 
@@ -104,7 +109,7 @@ export class MediaEditorRenderer {
   private paintBlur = createBlurPainter(this.drawCtx, this.blurCanvas)
 
   /** User draws on cropped image but points must be in original image coordinates */
-  private screenPointToImagePoint = new Lazy(() => {
+  public pointMatcher = new Lazy(() => {
     // Use 0 as padding, because drawing is not available in crop move
     const padding = 0
 
@@ -123,11 +128,19 @@ export class MediaEditorRenderer {
     const cropX = (this.width - cropW) / 2
     const cropY = (this.height - cropH) / 2
 
-    return (point: Point) => {
-      return bounds.unrotatePoint({
-        x: (point.x - cropX) / cropScale + crop.x,
-        y: (point.y - cropY) / cropScale + crop.y
-      })
+    return {
+      toImagePoint: (point: Point) => {
+        return bounds.unrotatePoint({
+          x: (point.x - cropX) / cropScale + crop.x,
+          y: (point.y - cropY) / cropScale + crop.y
+        })
+      },
+      toScreenPoint: (point: Point) => {
+        return bounds.rotatePoint({
+          x: (point.x - crop.x) * cropScale + cropX,
+          y: (point.y - crop.y) * cropScale + cropY
+        })
+      }
     }
   })
 
@@ -179,7 +192,7 @@ export class MediaEditorRenderer {
     state.addEventListener('changed', (values, fields, isRestored) => {
       this.values = values
       if(fields.includes('crop') || fields.includes('rotation') || fields.includes('transformRotation')) {
-        this.screenPointToImagePoint.invalidate()
+        this.pointMatcher.invalidate()
       }
       if(fields.includes('transformRotation')) {
         this.dispatchResize(isRestored)
@@ -194,19 +207,21 @@ export class MediaEditorRenderer {
     })
 
     state.addEventListener('restored', (values, fields) => {
-      if(fields.includes('draw')) {
+      if(fields.includes('paintings')) {
         // redraw all paths
         this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height)
-        for(const path of values.draw) {
-          this.painter.startPath(path, path.points[0])
-          if(path.tool === 'blur') {
-            this.paintBlur(path)
-            continue
+        for(const path of values.paintings) {
+          if(path.type === 'path') {
+            this.painter.startPath(path, path.points[0])
+            if(path.tool === 'blur') {
+              this.paintBlur(path)
+              continue
+            }
+            for(let i = 1; i < path.points.length; i++) {
+              this.painter.updatePath(path, path.points[i])
+            }
+            this.painter.endPath(path)
           }
-          for(let i = 1; i < path.points.length; i++) {
-            this.painter.updatePath(path, path.points[i])
-          }
-          this.painter.endPath(path)
         }
       }
     })
@@ -230,6 +245,58 @@ export class MediaEditorRenderer {
       0, 0, crop.width, crop.height
     )
 
+    function drawRoundedRect(x: number, y: number, width: number, height: number, radius: number) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    for(const path of this.state.current.stickers) {
+      if(path.type === 'text') {
+        ctx.save()
+        ctx.font = `${path.fontSize}px ${path.fontFamily}`
+        ctx.textAlign = path.align
+        ctx.strokeStyle = 'transparent'
+        const measure = ctx.measureText(path.content)
+        const rect = {
+          x: path.position.x - 5,
+          y: path.position.y - 5,
+          width: measure.actualBoundingBoxRight - measure.actualBoundingBoxLeft + 10,
+          height: measure.fontBoundingBoxAscent + measure.fontBoundingBoxDescent + 10,
+          radius: 10
+        }
+
+        const drawTextBackground = () => {
+          drawRoundedRect(rect.x, rect.y, rect.width, rect.height, rect.radius)
+        }
+
+        if(path.frame === 'none') {
+          ctx.fillStyle = path.color
+        } else if(path.frame === 'black') {
+          ctx.fillStyle = path.color
+          drawTextBackground()
+          ctx.fillStyle = 'white'
+        } else {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+          drawTextBackground()
+          ctx.fillStyle = path.color
+        }
+        ctx.textBaseline = 'middle'
+        ctx.fillText(path.content, path.position.x, rect.y + rect.height / 2)
+        ctx.restore()
+      }
+    }
+
     return new Promise((resolve) => {
       resultCanvas.toBlob((blob) => {
         if(blob === null) {
@@ -252,7 +319,7 @@ export class MediaEditorRenderer {
     this.width = width
     this.height = height
 
-    this.screenPointToImagePoint.invalidate()
+    this.pointMatcher.invalidate()
     this.requestFrame()
     this.dispatchResize()
   }
@@ -281,6 +348,18 @@ export class MediaEditorRenderer {
       this.registerDrawListeners()
     } else {
       this.unregisterDrawListeners()
+    }
+  }
+
+  setTextMode(textMode: boolean) {
+    if(this.textMode === textMode) {
+      return
+    }
+
+    if(textMode) {
+      this.registerTextListeners()
+    } else {
+      this.unregisterTextListeners()
     }
   }
 
@@ -401,12 +480,12 @@ export class MediaEditorRenderer {
 
   private registerDrawListeners() {
     const lastPath = () => {
-      return this.state.current.draw.at(-1)
+      return this.state.current.paintings.at(-1)
     }
     this.unregisterDrawListeners = attachGrabListeners(
       this.mainCanvas,
       ({x, y}) => {
-        const point = this.screenPointToImagePoint.value({x, y})
+        const point = this.pointMatcher.value.toImagePoint({x, y})
 
         this.state.startPath({
           ...this.state.drawState,
@@ -417,7 +496,7 @@ export class MediaEditorRenderer {
         this.painter.startPath(path, point)
       },
       ({x, y}) => {
-        const point = this.screenPointToImagePoint.value({x, y})
+        const point = this.pointMatcher.value.toImagePoint({x, y})
         this.state.updatePath(point)
         const path = lastPath()
         this.painter.updatePath(path, point)
@@ -426,6 +505,16 @@ export class MediaEditorRenderer {
         this.state.commitDraw()
         const path = lastPath()
         this.painter.endPath(path)
+      }
+    )
+  }
+
+  private registerTextListeners() {
+    this.unregisterTextListeners = attachClickEvent(
+      this.mainCanvas,
+      ({x, y}) => {
+        const point = this.pointMatcher.value.toImagePoint({x, y})
+        // this.state.startText(point)
       }
     )
   }

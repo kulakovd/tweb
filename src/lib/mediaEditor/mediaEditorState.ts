@@ -1,7 +1,7 @@
 import {
   defaultMediaEncoderValues,
   MediaEditorDrawState,
-  MediaEditorPath,
+  MediaEditorPath, MediaEditorText, MediaEditorTextState,
   MediaEditorValues
 } from './mediaEditorValues'
 import EventListenerBase from '../../helpers/eventListenerBase'
@@ -19,6 +19,7 @@ export type MediaEditorStateUpdate = Omit<Partial<MediaEditorValues>, 'filters'>
 export class MediaEditorState extends EventListenerBase<{
   changed: (values: MediaEditorValues, fields: Array<keyof MediaEditorValues>, isRestored: boolean) => void
   restored: (values: MediaEditorValues, fields: Array<keyof MediaEditorValues>) => void
+  textState: (textState: MediaEditorTextState) => void
 }> {
   private _lastCommit: MediaEditorValues = structuredClone(defaultMediaEncoderValues)
   private _current: MediaEditorValues = structuredClone(defaultMediaEncoderValues)
@@ -31,20 +32,84 @@ export class MediaEditorState extends EventListenerBase<{
     size: 15
   }
 
+  get current() {
+    return this._current
+  }
+
   get drawState() {
     return this._drawState
   }
 
   updateDrawState(update: Partial<MediaEditorDrawState>) {
     Object.assign(this._drawState, update)
-    console.log('[MediaEditorState] drawState updated', this._drawState)
   }
 
-  get current() {
-    return this._current
+  private _textState: MediaEditorTextState = {
+    color: '#ffffff',
+    fontSize: 24,
+    fontFamily: 'Roboto',
+    align: 'left',
+    frame: 'none'
   }
 
-  private _lastDrawIndex = 0
+  get textState() {
+    return this._textState
+  }
+
+  updateTextState(update: Partial<MediaEditorTextState>, final: boolean = false) {
+    Object.assign(this._textState, update)
+    this.dispatchEvent('textState', this._textState)
+    if(this._selectedStickerIndex >= 0) {
+      this.updateTextSticker(this._selectedStickerIndex, update)
+      if(final) {
+        this.commitStickers()
+      }
+    }
+  }
+
+  private updateTextStateFromTextIndex(index: number) {
+    const sticker = this._current.stickers[index]
+    if(sticker && sticker.type === 'text') {
+      const {color, fontSize, fontFamily, align, frame} = sticker
+      this.updateTextState({color, fontSize, fontFamily, align, frame})
+    }
+  }
+
+  private _lastStickerIndex = 0
+  private _selectedStickerIndex = -1
+
+  selectSticker(index: number) {
+    this._selectedStickerIndex = index
+    this.updateTextStateFromTextIndex(index)
+  }
+
+  addNewTextSticker(point: Point) {
+    this._lastStickerIndex = this._current.stickers.length
+    const textSticker: MediaEditorText = {
+      ...this._textState,
+      type: 'text',
+      position: {x: point.x, y: point.y},
+      content: '',
+      rotation: 0
+    }
+    this.update({stickers: [...this._current.stickers, textSticker]})
+    return this._lastStickerIndex
+  }
+
+  updateTextSticker(index: number, update: Partial<MediaEditorText>) {
+    const stickers = this._current.stickers
+    const sticker = stickers[index]
+    if(sticker) {
+      Object.assign(sticker, update)
+      this.update({stickers})
+    }
+  }
+
+  commitStickers(update?: Partial<MediaEditorValues['stickers']>) {
+    // TODO
+  }
+
+  private _lastPaintingIndex = 0
   startPath(path: {
     tool: MediaEditorPath['tool']
     color?: MediaEditorPath['color']
@@ -52,7 +117,7 @@ export class MediaEditorState extends EventListenerBase<{
     point: Point
   }) {
     const points = [{x: path.point.x, y: path.point.y}]
-    this._lastDrawIndex = this._current.draw.length
+    this._lastPaintingIndex = this._current.paintings.length
     const newPath: MediaEditorPath = {
       type: 'path',
       tool: path.tool,
@@ -62,29 +127,29 @@ export class MediaEditorState extends EventListenerBase<{
       points
     }
     this.update({
-      draw: [...this._current.draw, newPath]
+      paintings: [...this._current.paintings, newPath]
     })
   }
 
   updatePath(point: Point) {
-    const draw = this._current.draw
-    const lastPath = draw[this._lastDrawIndex]
+    const paintings = this._current.paintings
+    const lastPath = paintings[this._lastPaintingIndex]
     if(lastPath) {
       const lastPoint = lastPath.points[lastPath.points.length - 1]
       if(lastPoint.x === point.x && lastPoint.y === point.y) {
         return
       }
       lastPath.points.push({x: point.x, y: point.y})
-      this.update({draw})
+      this.update({paintings})
     }
   }
 
   commitDraw() {
-    const draw = this._current.draw
-    const lastPath = draw[this._lastDrawIndex]
+    const paintings = this._current.paintings
+    const lastPath = paintings[this._lastPaintingIndex]
     if(lastPath) {
       lastPath.completed = true
-      this.commit({draw})
+      this.commit({paintings})
     }
   }
 
